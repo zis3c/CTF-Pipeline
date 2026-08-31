@@ -1,5 +1,11 @@
 # CTF Pipeline
 
+[![CI](https://github.com/OWNER/ctf-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/ctf-pipeline/actions/workflows/ci.yml)
+[![Platform](https://img.shields.io/badge/platform-Linux-blue)](docs/OS-COMPATIBILITY.md)
+[![Python](https://img.shields.io/badge/python-3.12-blue)](config/requirements-ctf.txt)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Repository](https://img.shields.io/badge/repository-private-lightgrey)](#repository-scope)
+
 CTF Pipeline is a local, multi-CTF operations toolkit. It retrieves challenges from CTFd, keeps events isolated, preserves solver work during resync, generates AI-readable context, and verifies the local toolchain.
 
 It is intended for authorized CTF participation and lab environments. It does not solve challenges automatically or bypass access controls.
@@ -29,16 +35,7 @@ CTFd -> ctfd-player-cli -> ctf-pull -> ctfs/<profile>/<category>/<challenge>/
 
 ## Supported platforms
 
-| Platform | Support | Notes |
-|---|---|---|
-| Kali Linux amd64 | Full | Primary tested platform. |
-| Debian/Ubuntu amd64 | Supported | Install the documented packages manually. |
-| Debian-based ARM64 | Best effort | Native and reverse tools vary by architecture. |
-| WSL2 Debian/Ubuntu | Best effort | Podman, GUI tools and browser integration need setup. |
-| macOS | Not turnkey | Linux paths and package assumptions need adaptation. |
-| Native Windows | Not supported | Use WSL2 or a Linux VM. |
-
-The current scripts use `/home/zisec/ctf` as their installation root and are Linux-first.
+Kali Linux amd64 is the primary tested platform. Debian/Ubuntu amd64 is supported with manual package setup. ARM64 and WSL2 are best effort; macOS is not turnkey; native Windows is unsupported. See [`docs/OS-COMPATIBILITY.md`](docs/OS-COMPATIBILITY.md).
 
 ## Installation
 
@@ -59,8 +56,10 @@ ctf-pull resync --name example-ctf --dry-run
 ctf-pull resync --name example-ctf
 ```
 
-Profiles live under `ctfs/<profile>/`. Runtime profiles, challenge files, tokens, logs, backups, evidence and machine-specific inventory are ignored by Git.
+## Repository scope
+
+This repository contains reusable pipeline code, documentation and safe test fixtures. Real profiles, challenge attachments, tokens, logs, backups, evidence, third-party source and machine-specific inventory are ignored by Git.
 
 ## Documentation
 
-Start at [`docs/INDEX.md`](docs/INDEX.md). It links installation, architecture, commands, data layout, troubleshooting, security, AI context and contribution guidance.
+Start at [`docs/INDEX.md`](docs/INDEX.md). See [`CONTRIBUTING.md`](CONTRIBUTING.md) for development checks and [`LICENSE`](LICENSE) for licensing.

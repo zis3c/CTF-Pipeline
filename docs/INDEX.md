@@ -16,3 +16,4 @@
 - [`TOOLS.md`](TOOLS.md) — inventory and tool selection.
 - [`SECURITY.md`](SECURITY.md) — credentials, evidence and isolation.
 - [`CONTRIBUTING.md`](../CONTRIBUTING.md) — code and documentation standards.
+- [`CHANGELOG.md`](../CHANGELOG.md) — release history.

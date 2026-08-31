@@ -1,4 +1,4 @@
-#!/home/zisec/.venvs/ctf-dev/bin/python
+#!/usr/bin/env python3
 """Small local CTFd API compatibility test for the pipeline helper."""
 import json, subprocess, tempfile
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -18,7 +18,7 @@ try:
     with tempfile.TemporaryDirectory() as td:
         root=Path(td); (root/'.ctfd').mkdir(); (root/'.ctfd/config.json').write_text(json.dumps({'CTFD':{'URL':f'http://127.0.0.1:{server.server_port}','TOKEN':'fixture'}}))
         (root/'challenges-detailed.json').write_text(json.dumps([{'id':1,'name':'Fixture','category':'Crypto','type':'standard','value':50,'description':'old','files':[],'hints':[]}]))
-        tool=Path('/home/zisec/ctf/scripts/ctf-pipeline.py')
+        tool=Path(__file__).resolve().parents[1] / 'scripts' / 'ctf-pipeline.py'
         out=subprocess.run([str(tool),'dry-run',str(root)],capture_output=True,text=True,check=True).stdout
         assert '~ modified: Fixture' in out
     print('ctfd integration fixture: OK')

@@ -1,4 +1,4 @@
-#!/home/zisec/.venvs/ctf-dev/bin/python
+#!/usr/bin/env python3
 """Metadata, archive, index and safety layer for the CTFd pull pipeline."""
 from __future__ import annotations
 import hashlib, json, os, re, shutil, sys
