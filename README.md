@@ -43,6 +43,8 @@ Kali Linux amd64 is the primary tested platform. Debian/Ubuntu amd64 is supporte
 export CTF_HOME="$HOME/ctf-pipeline"
 git clone <private-repository-url> "$CTF_HOME"
 source "$CTF_HOME/config/activate-ctf.sh"
+ctf-install-tools --dry-run
+ctf-install-tools
 ctf-doctor
 ```
 

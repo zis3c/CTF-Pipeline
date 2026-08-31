@@ -2,6 +2,9 @@
 
 ```bash
 source "$CTF_HOME/config/activate-ctf.sh"
+
+ctf-install-tools --dry-run
+ctf-install-tools
 ctf-pull init --name example-ctf --url https://ctf.example.com
 ctf-pull sync --name example-ctf
 ctf-pull pull --name example-ctf

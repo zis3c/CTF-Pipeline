@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+CTF_HOME="${CTF_HOME:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+CTF_PYTHON="${CTF_PYTHON:-python3}"
+DRY_RUN=0
+INSTALL_EXTRAS=0
+
+usage() {
+  cat <<'EOF'
+Usage: ctf-install-tools [--dry-run] [--extras]
+
+Install the portable CTF toolchain for Kali/Debian/Ubuntu.
+  --dry-run  Show actions without changing the system
+  --extras   Install optional pipx tools (larger install)
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --dry-run) DRY_RUN=1; shift ;;
+    --extras) INSTALL_EXTRAS=1; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
+  esac
+done
+
+run() {
+  printf '+'; printf ' %q' "$@"; printf '\n'
+  [ "$DRY_RUN" -eq 1 ] || "$@"
+}
+
+if [ "$DRY_RUN" -eq 0 ] && [ "$(id -u)" -ne 0 ] && ! command -v sudo >/dev/null 2>&1; then
+  echo 'sudo is required for system packages.' >&2
+  exit 1
+fi
+
+APT_PACKAGES=(
+  build-essential cmake git curl wget jq ripgrep fzf
+  gdb gdb-multiarch checksec python3-ropgadget binutils
+  qemu-user qemu-user-static adb apktool jadx
+  radare2 rizin hashcat john
+  binwalk foremost pngcheck pngcrush steghide stegseek yara
+  tshark tcpflow ffmpeg sox
+  nmap ncat dnsrecon dirsearch ffuf feroxbuster gobuster sqlmap
+  go rustc cargo
+)
+
+available=()
+for package in "${APT_PACKAGES[@]}"; do
+  if [ "$DRY_RUN" -eq 1 ] || apt-cache show "$package" >/dev/null 2>&1; then
+    available+=("$package")
+  else
+    echo "[SKIP] apt package unavailable: $package"
+  fi
+done
+
+if [ "$DRY_RUN" -eq 1 ]; then
+  run sudo apt update
+  run sudo apt install -y "${available[@]}"
+else
+  sudo apt update
+  sudo apt install -y "${available[@]}"
+fi
+
+if [ ! -x "$CTF_PYTHON" ]; then
+  echo "Python executable not found: $CTF_PYTHON" >&2
+  exit 1
+fi
+run "$CTF_PYTHON" -m pip install --upgrade pip
+run "$CTF_PYTHON" -m pip install -r "$CTF_HOME/config/requirements-ctf.txt"
+
+if command -v gem >/dev/null 2>&1; then
+  run gem install --user-install one_gadget seccomp-tools zsteg
+else
+  echo '[SKIP] Ruby/gem is not installed; skipping one_gadget, seccomp-tools and zsteg.'
+fi
+
+if [ "$INSTALL_EXTRAS" -eq 1 ]; then
+  if ! command -v pipx >/dev/null 2>&1; then
+    run "$CTF_PYTHON" -m pip install --user pipx
+    run "$CTF_PYTHON" -m pipx ensurepath
+  fi
+  for package in objection msoffcrypto-tool name-that-hash xortool flare-capa oletools volatility3 paramspider slither-analyzer pcodedmp pytesseract; do
+    run pipx install --force "$package"
+  done
+fi
+
+if [ ! -f "$CTF_HOME/config/tools.json" ]; then
+  echo "Initializing local tool inventory: $CTF_HOME/config/tools.json"
+  if [ "$DRY_RUN" -eq 0 ]; then
+    cp "$CTF_HOME/config/tools.example.json" "$CTF_HOME/config/tools.json"
+  fi
+fi
+run "$CTF_HOME/scripts/refresh-tools-json.py"
+run "$CTF_HOME/bin/ctf-doctor"
+echo 'CTF tool installation completed.'

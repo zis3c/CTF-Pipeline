@@ -13,9 +13,15 @@
 export CTF_HOME="$HOME/ctf-pipeline"
 git clone <private-repository-url> "$CTF_HOME"
 source "$CTF_HOME/config/activate-ctf.sh"
+
+# Preview first, then install the standard toolchain.
+ctf-install-tools --dry-run
+ctf-install-tools
 ```
 
 All scripts derive their repository root automatically. Set `CTF_HOME` when the repository is stored outside its default location. Set `CTF_PYTHON` when Python is not on `PATH` or when a dedicated virtual environment is preferred.
+
+The installer covers the standard Kali/Debian CTF packages, the pinned Python environment, and Ruby tools such as `one_gadget`, `seccomp-tools` and `zsteg`. Use `ctf-install-tools --extras` for optional pipx utilities. It skips unavailable apt package names, bootstraps the local inventory from `config/tools.example.json`, and records detected versions in `config/tools.json`.
 
 ## Python dependencies
 
