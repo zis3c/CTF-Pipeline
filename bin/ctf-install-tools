@@ -32,7 +32,13 @@ run() {
   [ "$DRY_RUN" -eq 1 ] || "$@"
 }
 
-if [ "$DRY_RUN" -eq 0 ] && [ "$(id -u)" -ne 0 ] && ! command -v sudo >/dev/null 2>&1; then
+if [ "$(id -u)" -eq 0 ]; then
+  SUDO=()
+elif command -v sudo >/dev/null 2>&1; then
+  SUDO=(sudo)
+elif [ "$DRY_RUN" -eq 1 ]; then
+  SUDO=(sudo)
+else
   echo 'sudo is required for system packages.' >&2
   exit 1
 fi
@@ -58,11 +64,11 @@ for package in "${APT_PACKAGES[@]}"; do
 done
 
 if [ "$DRY_RUN" -eq 1 ]; then
-  run sudo apt update
-  run sudo apt install -y "${available[@]}"
+  run "${SUDO[@]}" apt update
+  run "${SUDO[@]}" apt install -y "${available[@]}"
 else
-  sudo apt update
-  sudo apt install -y "${available[@]}"
+  "${SUDO[@]}" apt update
+  "${SUDO[@]}" apt install -y "${available[@]}"
 fi
 
 if [ ! -x "$CTF_PYTHON" ]; then
@@ -82,6 +88,7 @@ if [ "$INSTALL_EXTRAS" -eq 1 ]; then
   if ! command -v pipx >/dev/null 2>&1; then
     run "$CTF_PYTHON" -m pip install --user pipx
     run "$CTF_PYTHON" -m pipx ensurepath
+    export PATH="${HOME:-}/.local/bin:$PATH"
   fi
   for package in objection msoffcrypto-tool name-that-hash xortool flare-capa oletools volatility3 paramspider slither-analyzer pcodedmp pytesseract; do
     run pipx install --force "$package"
