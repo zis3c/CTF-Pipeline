@@ -21,6 +21,8 @@ ctf-install-tools
 
 All scripts derive their repository root automatically. Set `CTF_HOME` when the repository is stored outside its default location. Set `CTF_PYTHON` when Python is not on `PATH` or when a dedicated virtual environment is preferred.
 
+By default downloaded profiles are stored under `$CTF_HOME/ctfs`. Set `CTF_PROFILES_ROOT` to store them elsewhere, such as `export CTF_PROFILES_ROOT="$HOME"` for a profile at `$HOME/3108-ctf-warisan-takhta`.
+
 The installer covers the standard Kali/Debian CTF packages, the pinned Python environment, and Ruby tools such as `one_gadget`, `seccomp-tools` and `zsteg`. Use `ctf-install-tools --extras` for optional pipx utilities. It skips unavailable apt package names, bootstraps the local inventory from `config/tools.example.json`, and records detected versions in `config/tools.json`.
 
 ## Python dependencies

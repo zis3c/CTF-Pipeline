@@ -9,7 +9,10 @@ if [ -z "${CTF_PYTHON:-}" ]; then
   if [ -x "${HOME:-}/.venvs/ctf-dev/bin/python" ]; then CTF_PYTHON="$HOME/.venvs/ctf-dev/bin/python"; else CTF_PYTHON=python3; fi
 fi
 PY="$CTF_PYTHON"
-BASE_ROOT="$CTF_HOME/ctfs"
+# Profiles normally live under the pipeline checkout.  Set
+# CTF_PROFILES_ROOT to keep an event workspace elsewhere (for example
+# /home/zisec/3108-ctf-warisan-takhta).
+BASE_ROOT="${CTF_PROFILES_ROOT:-$CTF_HOME/ctfs}"
 ROOT="$BASE_ROOT"
 CTFD_BIN="${CTFD_BIN:-}"
 LOGDIR="$CTF_HOME/logs/sync"
@@ -50,7 +53,7 @@ mkdir -p "$ROOT" "$LOGDIR"
 
 resolve_root() {
   if [ -z "$PROFILE" ]; then
-    mapfile -t found < <(find "$BASE_ROOT" -mindepth 3 -maxdepth 3 -type f -path '*/.ctfd/config.json' -printf '%h\n' | sed 's#/.ctfd$##')
+    mapfile -t found < <(find "$BASE_ROOT" -mindepth 3 -maxdepth 3 -type f -path '*/.ctfd/config.json' -printf '%h\n' | sed 's#/.ctfd$##' | sort)
     [ "${#found[@]}" -eq 1 ] || { echo 'Specify --name NAME (or use ctf-pull list).' >&2; exit 2; }
     ROOT="${found[0]}"
   else
@@ -187,6 +190,8 @@ run_ctfd() {
   for attempt in 1 2 3; do
     if [ -n "$CTFD_BIN" ]; then
       "$CTFD_BIN" -d "$ROOT" "$@" 2>&1 | tee -a "$LOG"
+    elif command -v ctfd >/dev/null 2>&1; then
+      ctfd -d "$ROOT" "$@" 2>&1 | tee -a "$LOG"
     else
       "$PY" -m ctfd -d "$ROOT" "$@" 2>&1 | tee -a "$LOG"
     fi
@@ -199,6 +204,31 @@ run_ctfd() {
     sleep $((attempt * 2))
   done
   return 1
+}
+
+export_metadata() {
+  [ -f "$CONFIG" ] || return
+  "$PY" - "$ROOT" "$CONFIG" <<'PY'
+import json, sys
+from pathlib import Path
+
+root, config_path = map(Path, sys.argv[1:])
+config = json.loads(config_path.read_text())
+details = config.get('Challenges', [])
+summary = []
+for challenge in details:
+    summary.append({
+        'name': challenge.get('name', ''),
+        'category': challenge.get('category', ''),
+        'type': challenge.get('type', ''),
+        'is_downloaded': bool(challenge.get('is_downloaded', False)),
+        'id': challenge.get('id', ''),
+    })
+for name, data in (('challenges-detailed.json', details), ('challenges.json', summary)):
+    path = root / name
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n')
+    path.chmod(0o600)
+PY
 }
 
 ensure_layout() {
@@ -247,6 +277,7 @@ case "$MODE" in
     [ "$DRY_RUN" -eq 0 ] || { "$PIPE/scripts/ctf-pipeline.py" dry-run "$ROOT"; exit; }
     "$PIPE/scripts/ctf-pipeline.py" snapshot "$ROOT"
     run_ctfd sync --force
+    export_metadata
     migrate_to_event_root
     normalize_categories
     organize_from_json
@@ -260,8 +291,10 @@ case "$MODE" in
     "$PIPE/scripts/ctf-pipeline.py" snapshot "$ROOT"
     "$PIPE/scripts/ctf-pipeline.py" archive "$ROOT"
     run_ctfd sync --force
+    export_metadata
     migrate_to_event_root
     run_ctfd challenges --force
+    export_metadata
     normalize_categories
     organize_from_json
     "$PIPE/scripts/ctf-pipeline.py" diff "$ROOT"
