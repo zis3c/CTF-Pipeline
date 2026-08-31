@@ -1,5 +1,18 @@
-# CTF Workspace Documentation
+# Documentation Index
 
-Read `ARCHITECTURE.md` for component relationships, `COMMANDS.md` for daily use, `FUNCTION-REFERENCE.md` for maintained functions, `CHALLENGE-WORKFLOW.md` for folder meanings, `AI-CONTEXT.md` for agent behavior, `TOOLS.md` for inventory usage, and `SECURITY.md` for secrets and isolation.
+## Users
 
-This documents the maintained workflow under `/home/zisec/ctf`. Third-party source in `tools/` keeps its upstream documentation.
+- [`INSTALLATION.md`](INSTALLATION.md) — prerequisites, installation and first run.
+- [`COMMANDS.md`](COMMANDS.md) — daily command reference.
+- [`DATA-LAYOUT.md`](DATA-LAYOUT.md) — profile and challenge folder contract.
+- [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) — common failures and recovery.
+- [`OS-COMPATIBILITY.md`](OS-COMPATIBILITY.md) — supported operating systems and limitations.
+
+## Developers and AI agents
+
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — components and sources of truth.
+- [`FUNCTION-REFERENCE.md`](FUNCTION-REFERENCE.md) — maintained script functions.
+- [`AI-CONTEXT.md`](AI-CONTEXT.md) — agent behavior.
+- [`TOOLS.md`](TOOLS.md) — inventory and tool selection.
+- [`SECURITY.md`](SECURITY.md) — credentials, evidence and isolation.
+- [`CONTRIBUTING.md`](../CONTRIBUTING.md) — code and documentation standards.
