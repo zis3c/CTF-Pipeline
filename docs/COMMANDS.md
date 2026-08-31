@@ -1,7 +1,7 @@
 # Command Reference
 
 ```bash
-source /home/zisec/ctf/config/activate-ctf.sh
+source "$CTF_HOME/config/activate-ctf.sh"
 ctf-pull init --name example-ctf --url https://ctf.example.com
 ctf-pull sync --name example-ctf
 ctf-pull pull --name example-ctf
@@ -16,7 +16,7 @@ ctf-pull git-init --name example-ctf
 ctf-doctor
 ctf-new "Manual Challenge"
 ctf-update
-/home/zisec/ctf/bin/run-isolated /path/to/challenge -- /bin/bash
+"$CTF_HOME/bin/run-isolated" /path/to/challenge -- /bin/bash
 ```
 
 Each CTF has its own token, JSON and challenge tree under `ctfs/<profile>/`. Manual challenges go under `ctfs/manual/`. `status` never prints a token.

@@ -3,14 +3,17 @@ set -euo pipefail
 if [ "$#" -lt 1 ]; then echo 'usage: ctf-new <challenge-name>' >&2; exit 2; fi
 name="$1"
 safe=$(printf '%s' "$name" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9._-' '-')
-root="/home/zisec/ctf/ctfs/manual/$safe"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+CTF_HOME="${CTF_HOME:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+CTF_PYTHON="${CTF_PYTHON:-python3}"
+root="$CTF_HOME/ctfs/manual/$safe"
 if [ -e "$root" ]; then echo "exists: $root" >&2; exit 1; fi
 mkdir -p "$root"/{files,work,notes,writeup,flag_output_dir}
 chmod 700 "$root/flag_output_dir"
 printf 'not_started\n' > "$root/.solver-status"
 printf '# Agent Context\n\nThis is a manually created challenge. Inspect the category and choose the appropriate CTF skill.\n\n- Work: `work/`\n- Notes: `notes/`\n- Writeup: `writeup/solution.md`\n- Evidence: `flag_output_dir/`\n' > "$root/AGENT.md"
-printf '# Execution Safety\n\nTreat supplied files as untrusted. Use `/home/zisec/ctf/bin/run-isolated` before executing unknown code.\n' > "$root/EXECUTION-SAFETY.md"
-printf '{\n  "challenge": %s,\n  "files": []\n}\n' "$(printf '%s' "$name" | /home/zisec/.venvs/ctf-dev/bin/python -c 'import json,sys; print(json.dumps(sys.stdin.read()))')" > "$root/attachment-manifest.json"
+printf '# Execution Safety\n\nTreat supplied files as untrusted. Use `CTF_HOME/bin/run-isolated` before executing unknown code.\n' > "$root/EXECUTION-SAFETY.md"
+printf '{\n  "challenge": %s,\n  "files": []\n}\n' "$(printf '%s' "$name" | "$CTF_PYTHON" -c 'import json,sys; print(json.dumps(sys.stdin.read()))')" > "$root/attachment-manifest.json"
 printf '# Solution\n\n## Summary\n\n## Analysis\n\n## Solving Steps\n\n## Flag Validation\n' > "$root/writeup/solution.md"
 cat > "$root/README.md" <<EOF
 # $name

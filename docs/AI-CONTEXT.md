@@ -1,6 +1,6 @@
 # AI Context Guide
 
-Read `/home/zisec/ctf/README.md`, run `ctf-pull list`, then select one `ctfs/<profile>/` and read its `challenges-detailed.json` and challenge README. Never mix profiles. Work only inside that challenge's `work/`; put reasoning in `notes/`, final text in `writeup/solution.md`, and validated evidence in `flag_output_dir/`.
+Read `$CTF_HOME/README.md`, run `ctf-pull list`, then select one `ctfs/<profile>/` and read its `challenges-detailed.json` and challenge README. Never mix profiles. Work only inside that challenge's `work/`; put reasoning in `notes/`, final text in `writeup/solution.md`, and validated evidence in `flag_output_dir/`.
 
 Read the challenge `AGENT.md` for category, ID, paths and validation rules. Use `attachment-manifest.json` to confirm artifact hashes and `EXECUTION-SAFETY.md` before running files. Use `INDEX.md` and `.solver-status` to understand progress.
 

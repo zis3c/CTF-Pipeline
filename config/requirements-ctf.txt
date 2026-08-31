@@ -1,4 +1,4 @@
-# Reproducible Python 3.12 CTF environment: /home/zisec/.venvs/ctf-dev
+# Reproducible Python 3.12 CTF environment; install into the environment selected by CTF_PYTHON.
 angr==9.3.3
 capstone==5.0.9
 cysignals==1.12.6

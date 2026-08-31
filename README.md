@@ -40,9 +40,10 @@ Kali Linux amd64 is the primary tested platform. Debian/Ubuntu amd64 is supporte
 ## Installation
 
 ```bash
-git clone <private-repository-url> /home/zisec/ctf
-source /home/zisec/ctf/config/activate-ctf.sh
-/home/zisec/ctf/bin/ctf-doctor
+export CTF_HOME="$HOME/ctf-pipeline"
+git clone <private-repository-url> "$CTF_HOME"
+source "$CTF_HOME/config/activate-ctf.sh"
+ctf-doctor
 ```
 
 See [`docs/INSTALLATION.md`](docs/INSTALLATION.md) for prerequisites and setup details.

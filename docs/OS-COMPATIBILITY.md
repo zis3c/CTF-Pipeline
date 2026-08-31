@@ -13,7 +13,7 @@
 
 ## Portability limitations
 
-The current implementation uses absolute `/home/zisec/ctf` paths, Bash, GNU utilities, Linux permissions and a Linux Python 3.12 environment. A portable release should introduce `CTF_HOME`, avoid hardcoded user paths, and separate platform-specific installation from the pipeline logic.
+The pipeline uses Bash, GNU utilities, Linux permissions and Python 3.12. Repository paths are derived from the checkout location and can be overridden with `CTF_HOME`; Python can be selected with `CTF_PYTHON`. It is designed for Kali Linux and Debian-based Linux systems. Windows and macOS are not first-class targets because the synchronization CLI, file permissions and several CTF tools are Linux-oriented.
 
 ## CTFd compatibility
 

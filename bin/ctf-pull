@@ -2,10 +2,17 @@
 set -Eeuo pipefail
 umask 077
 
-BASE_ROOT="/home/zisec/ctf/ctfs"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+CTF_HOME="${CTF_HOME:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+export CTF_HOME
+if [ -z "${CTF_PYTHON:-}" ]; then
+  if [ -x "${HOME:-}/.venvs/ctf-dev/bin/python" ]; then CTF_PYTHON="$HOME/.venvs/ctf-dev/bin/python"; else CTF_PYTHON=python3; fi
+fi
+PY="$CTF_PYTHON"
+BASE_ROOT="$CTF_HOME/ctfs"
 ROOT="$BASE_ROOT"
-CTFD="/home/zisec/.venvs/ctf-dev/bin/ctfd"
-LOGDIR="/home/zisec/ctf/logs/sync"
+CTFD_BIN="${CTFD_BIN:-}"
+LOGDIR="$CTF_HOME/logs/sync"
 MODE="${1:-help}"
 shift || true
 PROFILE=""
@@ -52,15 +59,15 @@ resolve_root() {
   fi
   mkdir -p "$ROOT"
   CONFIG="$ROOT/.ctfd/config.json"
-  LOGDIR="/home/zisec/ctf/logs/sync/$PROFILE"
+  LOGDIR="$CTF_HOME/logs/sync/$PROFILE"
   mkdir -p "$LOGDIR"
   LOG="$LOGDIR/$(date -u +%Y%m%dT%H%M%SZ)-$MODE.log"
 }
 
-PIPE="/home/zisec/ctf"
+PIPE="$CTF_HOME"
 
 event_slug() {
-  /home/zisec/.venvs/ctf-dev/bin/python - "$1" <<'PY'
+  "$PY" - "$1" <<'PY'
 import re, sys, unicodedata
 s = unicodedata.normalize('NFKD', sys.argv[1]).encode('ascii', 'ignore').decode()
 s = re.sub(r'[^A-Za-z0-9]+', '-', s).strip('-').lower()
@@ -74,7 +81,7 @@ migrate_to_event_root() {
 
 write_event_info() {
   [ -f "$CONFIG" ] || return
-  /home/zisec/.venvs/ctf-dev/bin/python - "$ROOT" "$CONFIG" <<'PY'
+  "$PY" - "$ROOT" "$CONFIG" <<'PY'
 import json, re, sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -126,7 +133,7 @@ normalize_categories() {
 organize_from_json() {
   local detailed="$ROOT/challenges-detailed.json"
   [ -f "$detailed" ] || return
-  /home/zisec/.venvs/ctf-dev/bin/python - "$ROOT" "$detailed" <<'PY'
+  "$PY" - "$ROOT" "$detailed" <<'PY'
 import json, re, shutil, sys
 from pathlib import Path
 root, detailed = map(Path, sys.argv[1:])
@@ -178,7 +185,12 @@ fi
 run_ctfd() {
   rm -f /tmp/.ctfd.cache
   for attempt in 1 2 3; do
-    if "$CTFD" -d "$ROOT" "$@" 2>&1 | tee -a "$LOG"; then
+    if [ -n "$CTFD_BIN" ]; then
+      "$CTFD_BIN" -d "$ROOT" "$@" 2>&1 | tee -a "$LOG"
+    else
+      "$PY" -m ctfd -d "$ROOT" "$@" 2>&1 | tee -a "$LOG"
+    fi
+    if [ "${PIPESTATUS[0]}" -eq 0 ]; then
       rm -f /tmp/.ctfd.cache
       return 0
     fi
@@ -259,7 +271,7 @@ case "$MODE" in
     ;;
   status)
     [ -f "$CONFIG" ] || { echo "Not initialized: $CONFIG" >&2; exit 1; }
-    /home/zisec/.venvs/ctf-dev/bin/python - "$CONFIG" <<'PY'
+    "$PY" - "$CONFIG" <<'PY'
 import json, sys
 p = sys.argv[1]
 d = json.load(open(p))

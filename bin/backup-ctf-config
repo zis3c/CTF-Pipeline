@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
-dest="/home/zisec/ctf/backups/$stamp"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+CTF_HOME="${CTF_HOME:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+dest="$CTF_HOME/backups/$stamp"
 mkdir -p "$dest"
-cp /home/zisec/ctf/config/tools.json /home/zisec/ctf/config/requirements-ctf.txt /home/zisec/ctf/config/requirements-ctf.lock "$dest/" 2>/dev/null || true
-cp /home/zisec/ctf/config/activate-ctf.sh /home/zisec/ctf/bin/ctf-doctor /home/zisec/.gdbinit "$dest/"
+cp "$CTF_HOME/config/tools.json" "$CTF_HOME/config/requirements-ctf.txt" "$CTF_HOME/config/requirements-ctf.lock" "$dest/" 2>/dev/null || true
+cp "$CTF_HOME/config/activate-ctf.sh" "$CTF_HOME/bin/ctf-doctor" "$dest/"
+[ -f "${HOME:-}/.gdbinit" ] && cp "$HOME/.gdbinit" "$dest/"
 chmod 700 "$dest"
 printf '%s\n' "$dest"

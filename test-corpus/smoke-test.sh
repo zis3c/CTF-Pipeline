@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
-R="/home/zisec/ctf/test-corpus"
-source /home/zisec/ctf/config/activate-ctf.sh >/dev/null
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+CTF_HOME="${CTF_HOME:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+R="$CTF_HOME/test-corpus"
+source "$CTF_HOME/config/activate-ctf.sh" >/dev/null
 TMP_RSA="$(mktemp)"
 trap 'rm -f "$TMP_RSA"' EXIT
 test -x "$R/pwn/ret2win"

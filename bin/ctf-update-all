@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-ROOT="/home/zisec/ctf"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="${CTF_HOME:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 BIN="$ROOT/bin"
 CFG="$ROOT/config"
 SCRIPTS="$ROOT/scripts"
-PY="/home/zisec/.venvs/ctf-dev/bin/python"
+PY="${CTF_PYTHON:-python3}"
 LOGDIR="$ROOT/logs/update"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$LOGDIR"
@@ -43,13 +44,18 @@ update_repo() {
 
 echo '[5/7] Update source-built CTF tools'
 update_repo /opt/ctf-tools/pwn/pwndbg
-update_repo /home/zisec/Tools/ctf-dev/pycdc
-update_repo /home/zisec/ctf/tools/ctfd-player-cli
-"$PY" -m pip install --upgrade --editable /home/zisec/ctf/tools/ctfd-player-cli
-if [ -d /home/zisec/Tools/ctf-dev/pycdc/.git ]; then
-  cmake -S /home/zisec/Tools/ctf-dev/pycdc -B /home/zisec/Tools/ctf-dev/pycdc/build -DCMAKE_BUILD_TYPE=Release
-  cmake --build /home/zisec/Tools/ctf-dev/pycdc/build -j2
-  ln -sfn /home/zisec/Tools/ctf-dev/pycdc/build/pycdc /home/zisec/.local/bin/pycdc
+PYCDC_ROOT="${PYCDC_ROOT:-${HOME:-}/Tools/ctf-dev/pycdc}"
+CTFD_PLAYER_ROOT="${CTFD_PLAYER_ROOT:-$ROOT/tools/ctfd-player-cli}"
+update_repo "$PYCDC_ROOT"
+update_repo "$CTFD_PLAYER_ROOT"
+if [ -f "$CTFD_PLAYER_ROOT/pyproject.toml" ] || [ -f "$CTFD_PLAYER_ROOT/setup.py" ]; then
+  "$PY" -m pip install --upgrade --editable "$CTFD_PLAYER_ROOT"
+fi
+if [ -d "$PYCDC_ROOT/.git" ]; then
+  cmake -S "$PYCDC_ROOT" -B "$PYCDC_ROOT/build" -DCMAKE_BUILD_TYPE=Release
+  cmake --build "$PYCDC_ROOT/build" -j2
+  mkdir -p "${PYCDC_BIN_DIR:-${HOME:-}/.local/bin}"
+  ln -sfn "$PYCDC_ROOT/build/pycdc" "${PYCDC_BIN_DIR:-${HOME:-}/.local/bin}/pycdc"
 fi
 
 echo '[6/7] Refresh inventory and verify'

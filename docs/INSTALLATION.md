@@ -10,17 +10,18 @@
 ## Install
 
 ```bash
-git clone <private-repository-url> /home/zisec/ctf
-source /home/zisec/ctf/config/activate-ctf.sh
+export CTF_HOME="$HOME/ctf-pipeline"
+git clone <private-repository-url> "$CTF_HOME"
+source "$CTF_HOME/config/activate-ctf.sh"
 ```
 
-The current scripts assume `/home/zisec/ctf`. Portability requires replacing hardcoded paths with a configurable `CTF_HOME`.
+All scripts derive their repository root automatically. Set `CTF_HOME` when the repository is stored outside its default location. Set `CTF_PYTHON` when Python is not on `PATH` or when a dedicated virtual environment is preferred.
 
 ## Python dependencies
 
 ```bash
-/home/zisec/.venvs/ctf-dev/bin/python -m pip install -r /home/zisec/ctf/config/requirements-ctf.txt
-/home/zisec/ctf/bin/ctf-doctor
+"$CTF_PYTHON" -m pip install -r "$CTF_HOME/config/requirements-ctf.txt"
+"$CTF_HOME/bin/ctf-doctor"
 ```
 
 ## Configure a CTF profile
@@ -35,6 +36,6 @@ Enter the token interactively. Never place it in command history, documentation 
 ## Verify development fixtures
 
 ```bash
-/home/zisec/ctf/test-corpus/smoke-test.sh
-/home/zisec/ctf/test-corpus/ctfd-integration-test.py
+"$CTF_HOME/test-corpus/smoke-test.sh"
+"$CTF_HOME/test-corpus/ctfd-integration-test.py"
 ```

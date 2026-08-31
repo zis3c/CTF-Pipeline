@@ -1,8 +1,9 @@
+import os
 from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
 from scapy.all import IP, TCP, wrpcap
 
-root = Path('/home/zisec/ctf/test-corpus')
+root = Path(os.environ.get('CTF_HOME', Path(__file__).resolve().parents[1])) / 'test-corpus'
 for d in ('pwn', 'rsa', 'apk', 'pcap', 'memory'):
     (root / d).mkdir(parents=True, exist_ok=True)
 (root / 'pwn' / 'ret2win.c').write_text('#include <stdio.h>\n#include <unistd.h>\nvoid win(void){puts("TEST_WIN");}\nint main(void){char b[32];read(0,b,128);}\n')

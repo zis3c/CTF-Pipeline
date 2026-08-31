@@ -2,7 +2,7 @@
 import json, os, re, subprocess
 from pathlib import Path
 
-p = Path('/home/zisec/ctf/config/tools.json')
+p = Path(os.environ.get('CTF_HOME', Path(__file__).resolve().parents[1])) / 'config' / 'tools.json'
 data = json.loads(p.read_text())
 safe_commands = {
     'go', 'rustc', 'cargo', 'gdb', 'nmap', 'curl', 'jq', 'ffuf', 'tshark',
