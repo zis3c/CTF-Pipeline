@@ -1,0 +1,305 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+
+BASE_ROOT="/home/zisec/ctf/ctfs"
+ROOT="$BASE_ROOT"
+CTFD="/home/zisec/.venvs/ctf-dev/bin/ctfd"
+LOGDIR="/home/zisec/ctf/logs/sync"
+MODE="${1:-help}"
+shift || true
+PROFILE=""
+DRY_RUN=0
+CHALLENGE=""
+STATUS_VALUE=""
+ARGS=()
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --name|-n) [ "$#" -ge 2 ] || { echo 'Missing profile name' >&2; exit 2; }; PROFILE="$2"; shift 2 ;;
+    --dry-run) DRY_RUN=1; shift ;;
+    --challenge) [ "$#" -ge 2 ] || { echo 'Missing challenge name' >&2; exit 2; }; CHALLENGE="$2"; shift 2 ;;
+    --status) [ "$#" -ge 2 ] || { echo 'Missing status value' >&2; exit 2; }; STATUS_VALUE="$2"; shift 2 ;;
+    *) ARGS+=("$1"); shift ;;
+  esac
+done
+set -- "${ARGS[@]}"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  ctf-pull init --name NAME --url URL     Create a named CTF profile (prompts for token)
+  ctf-pull sync --name NAME              Refresh one profile's metadata
+  ctf-pull pull --name NAME              Sync one profile and download everything
+  ctf-pull resync --name NAME            Force-refresh one profile
+  ctf-pull resync --name NAME --dry-run  Preview metadata changes only
+  ctf-pull status --name NAME            Show one profile's status
+  ctf-pull list                          List all configured CTF profiles
+
+Local folders work/, notes/ and flag_output_dir/ are preserved during resync.
+EOF
+}
+
+mkdir -p "$ROOT" "$LOGDIR"
+
+resolve_root() {
+  if [ -z "$PROFILE" ]; then
+    mapfile -t found < <(find "$BASE_ROOT" -mindepth 3 -maxdepth 3 -type f -path '*/.ctfd/config.json' -printf '%h\n' | sed 's#/.ctfd$##')
+    [ "${#found[@]}" -eq 1 ] || { echo 'Specify --name NAME (or use ctf-pull list).' >&2; exit 2; }
+    ROOT="${found[0]}"
+  else
+    PROFILE="$(event_slug "$PROFILE")"
+    ROOT="$BASE_ROOT/$PROFILE"
+  fi
+  mkdir -p "$ROOT"
+  CONFIG="$ROOT/.ctfd/config.json"
+  LOGDIR="/home/zisec/ctf/logs/sync/$PROFILE"
+  mkdir -p "$LOGDIR"
+  LOG="$LOGDIR/$(date -u +%Y%m%dT%H%M%SZ)-$MODE.log"
+}
+
+PIPE="/home/zisec/ctf"
+
+event_slug() {
+  /home/zisec/.venvs/ctf-dev/bin/python - "$1" <<'PY'
+import re, sys, unicodedata
+s = unicodedata.normalize('NFKD', sys.argv[1]).encode('ascii', 'ignore').decode()
+s = re.sub(r'[^A-Za-z0-9]+', '-', s).strip('-').lower()
+print(s or 'ctf-event')
+PY
+}
+
+migrate_to_event_root() {
+  : # Profiles are already rooted at ctfs/<profile>.
+}
+
+write_event_info() {
+  [ -f "$CONFIG" ] || return
+  /home/zisec/.venvs/ctf-dev/bin/python - "$ROOT" "$CONFIG" <<'PY'
+import json, re, sys
+from datetime import datetime, timezone
+from pathlib import Path
+import requests
+root, config_path = map(Path, sys.argv[1:])
+d=json.loads(config_path.read_text())
+url=d.get('CTFD',{}).get('URL','').rstrip('/')
+title='CTF Event'
+try:
+    html=requests.get(url+'/', timeout=15).text
+    m=re.search(r'<title[^>]*>(.*?)</title>', html, re.I|re.S)
+    if m: title=re.sub(r'\s+', ' ', m.group(1)).strip()
+except Exception: pass
+chals=d.get('Challenges', [])
+counts={}
+for c in chals: counts[c.get('category','Unknown')]=counts.get(c.get('category','Unknown'),0)+1
+lines=[f'# {title}', '', '## CTF Information', '', '- **Platform:** CTFd', f'- **URL:** {url}', f'- **Last sync:** {datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")}', f'- **Total challenges:** {len(chals)}', '', '## Challenge Summary', '', '| Category | Count |', '|---|---:|']
+lines += [f'| {k} | {v} |' for k,v in sorted(counts.items())]
+lines += ['', '## Resync', '', 'Run `ctf-pull resync` to refresh challenge metadata and attachments.', '', 'Local `work/`, `notes/` and `flag_output_dir/` folders are preserved.']
+(root/'_ctf-info.md').write_text('\n'.join(lines)+'\n')
+PY
+}
+
+normalize_categories() {
+  [ -d "$ROOT" ] || return
+  while IFS= read -r -d '' category; do
+    case "$(basename "$category")" in
+      *Cryptography*) name=crypto ;;
+      *Web*) name=web ;;
+      *Binary*) name=pwn ;;
+      *Reverse*) name=reverse ;;
+      *Forensics*) name=forensics ;;
+      *Mobile*) name=mobile ;;
+      *OSINT*) name=osint ;;
+      *Misc*) name=misc ;;
+      *Boot2Root*) name=boot2root ;;
+      *Selamat*) name=welcome ;;
+      *) continue ;;
+    esac
+    target="$ROOT/$name"
+    if [ "$category" != "$target" ]; then
+      mkdir -p "$target"
+      find "$category" -mindepth 1 -maxdepth 1 -exec mv {} "$target/" \;
+      rmdir "$category"
+    fi
+  done < <(find "$ROOT" -mindepth 1 -maxdepth 1 -type d ! -name .ctfd -print0)
+}
+
+organize_from_json() {
+  local detailed="$ROOT/challenges-detailed.json"
+  [ -f "$detailed" ] || return
+  /home/zisec/.venvs/ctf-dev/bin/python - "$ROOT" "$detailed" <<'PY'
+import json, re, shutil, sys
+from pathlib import Path
+root, detailed = map(Path, sys.argv[1:])
+items = json.loads(detailed.read_text())
+
+def slug(value, fallback='challenge'):
+    value = re.sub(r'[^a-zA-Z0-9]+', '-', value).strip('-').lower()
+    return value or fallback
+
+def category(value):
+    v=value.lower()
+    names=[('cryptography','crypto'),('web exploitation','web'),('binary exploitation','pwn'),('reverse engineering','reverse'),('digital forensics','forensics'),('mobile exploitation','mobile'),('osint','osint'),('miscellaneous','misc'),('boot2root','boot2root'),('selamat','welcome')]
+    for needle, short in names:
+        if needle in v: return short
+    return slug(value, 'other')
+
+for item in items:
+    cat = root / category(item.get('category','Other'))
+    chal = cat / slug(item.get('name','challenge'))
+    cat.mkdir(parents=True, exist_ok=True)
+    # Adopt an already-downloaded upstream folder where possible.
+    if not chal.exists():
+        old = cat / item.get('name','').replace(' ','-')
+        if old.exists(): old.rename(chal)
+    chal.mkdir(exist_ok=True)
+    (chal/'work').mkdir(exist_ok=True)
+    (chal/'notes').mkdir(exist_ok=True)
+    out=chal/'flag_output_dir'; out.mkdir(exist_ok=True); out.chmod(0o700)
+    readme=chal/'README.md'
+    if not readme.exists():
+        desc=(item.get('description') or 'No description provided.').replace('\r','')
+        hints=item.get('hints') or []
+        lines=[f"# {item.get('name','Challenge')}",'',f"- **ID:** {item.get('id','')}",f"- **Category:** {item.get('category','')}",f"- **Type:** {item.get('type','')}",f"- **Points:** {item.get('value','')}",'','## Description','',desc]
+        if item.get('connection_info'): lines += ['', '## Connection', '', str(item['connection_info'])]
+        if hints:
+            lines += ['', '## Hints', ''] + [f"- {h.get('content',h) if isinstance(h,dict) else h}" for h in hints]
+        files=item.get('files') or []
+        if files: lines += ['', '## Files', ''] + [f"- {Path(str(f)).name}" for f in files]
+        readme.write_text('\n'.join(lines)+'\n')
+PY
+}
+
+[ "$MODE" = list ] || resolve_root
+if [ "$MODE" != list ]; then
+  exec 9>"$ROOT/.pipeline.lock"
+  flock -n 9 || { echo "Pipeline is already running for profile: $PROFILE" >&2; exit 1; }
+fi
+
+run_ctfd() {
+  rm -f /tmp/.ctfd.cache
+  for attempt in 1 2 3; do
+    if "$CTFD" -d "$ROOT" "$@" 2>&1 | tee -a "$LOG"; then
+      rm -f /tmp/.ctfd.cache
+      return 0
+    fi
+    echo "Retrying CTFd command ($attempt/3)..." | tee -a "$LOG"
+    rm -f /tmp/.ctfd.cache
+    sleep $((attempt * 2))
+  done
+  return 1
+}
+
+ensure_layout() {
+  [ -d "$ROOT" ] || return
+  while IFS= read -r -d '' category; do
+    while IFS= read -r -d '' challenge; do
+      mkdir -p "$challenge/work" "$challenge/notes" "$challenge/writeup" "$challenge/flag_output_dir"
+      chmod 700 "$challenge/flag_output_dir"
+      if [ ! -f "$challenge/writeup/solution.md" ]; then
+        cat > "$challenge/writeup/solution.md" <<'EOF'
+# Solution
+
+## Summary
+
+<!-- Describe the intended vulnerability or solving idea. -->
+
+## Analysis
+
+<!-- Record the important observations and commands. -->
+
+## Exploitation / Solving Steps
+
+<!-- Add reproducible steps here. -->
+
+## Flag Validation
+
+<!-- Record how the flag was verified by the challenge platform/artifact. -->
+
+EOF
+      fi
+    done < <(find "$category" -mindepth 1 -maxdepth 1 -type d -print0)
+  done < <(find "$ROOT" -mindepth 1 -maxdepth 1 -type d ! -name .ctfd -print0)
+}
+
+case "$MODE" in
+  init)
+    [ -n "$PROFILE" ] || { echo 'Usage: ctf-pull init --name NAME --url URL' >&2; exit 2; }
+    run_ctfd init "$@"
+    migrate_to_event_root
+    write_event_info
+    mkdir -p "$(dirname "$CONFIG")"
+    chmod 700 "$(dirname "$CONFIG")"
+    [ -f "$CONFIG" ] && chmod 600 "$CONFIG"
+    ;;
+  sync)
+    [ "$DRY_RUN" -eq 0 ] || { "$PIPE/scripts/ctf-pipeline.py" dry-run "$ROOT"; exit; }
+    "$PIPE/scripts/ctf-pipeline.py" snapshot "$ROOT"
+    run_ctfd sync --force
+    migrate_to_event_root
+    normalize_categories
+    organize_from_json
+    "$PIPE/scripts/ctf-pipeline.py" diff "$ROOT"
+    "$PIPE/scripts/ctf-pipeline.py" generate "$ROOT"
+    write_event_info
+    ensure_layout
+    ;;
+  pull|resync)
+    [ "$DRY_RUN" -eq 0 ] || { "$PIPE/scripts/ctf-pipeline.py" dry-run "$ROOT"; exit; }
+    "$PIPE/scripts/ctf-pipeline.py" snapshot "$ROOT"
+    "$PIPE/scripts/ctf-pipeline.py" archive "$ROOT"
+    run_ctfd sync --force
+    migrate_to_event_root
+    run_ctfd challenges --force
+    normalize_categories
+    organize_from_json
+    "$PIPE/scripts/ctf-pipeline.py" diff "$ROOT"
+    "$PIPE/scripts/ctf-pipeline.py" generate "$ROOT"
+    write_event_info
+    ensure_layout
+    ;;
+  status)
+    [ -f "$CONFIG" ] || { echo "Not initialized: $CONFIG" >&2; exit 1; }
+    /home/zisec/.venvs/ctf-dev/bin/python - "$CONFIG" <<'PY'
+import json, sys
+p = sys.argv[1]
+d = json.load(open(p))
+print('URL:', d.get('CTFD', {}).get('URL', ''))
+print('CTF root:', p.rsplit('/.ctfd/', 1)[0])
+print('Challenges cached:', len(d.get('Challenges', [])))
+PY
+    ;;
+  list)
+    printf '%-24s %s\n' 'PROFILE' 'ROOT'
+    while IFS= read -r -d '' cfg; do
+      root="${cfg%/.ctfd/config.json}"
+      printf '%-24s %s\n' "$(basename "$root")" "$root"
+    done < <(find "$BASE_ROOT" -mindepth 3 -maxdepth 3 -type f -path '*/.ctfd/config.json' -print0 | sort -z)
+    ;;
+  doctor)
+    "$PIPE/scripts/ctf-pipeline.py" doctor "$ROOT"
+    ;;
+  set-status)
+    [ -n "$CHALLENGE" ] && [ -n "$STATUS_VALUE" ] || { echo 'Usage: ctf-pull set-status --name PROFILE --challenge CHALLENGE --status STATUS' >&2; exit 2; }
+    "$PIPE/scripts/ctf-pipeline.py" set-status "$ROOT" "$CHALLENGE" "$STATUS_VALUE"
+    ;;
+  open)
+    [ -n "$CHALLENGE" ] || { echo 'Usage: ctf-pull open --name PROFILE --challenge CHALLENGE' >&2; exit 2; }
+    "$PIPE/scripts/ctf-pipeline.py" open "$ROOT" "$CHALLENGE"
+    ;;
+  git-init)
+    "$PIPE/scripts/ctf-pipeline.py" git-init "$ROOT"
+    ;;
+  help|-h|--help)
+    usage
+    ;;
+  *)
+    echo "Unknown mode: $MODE" >&2
+    usage >&2
+    exit 2
+    ;;
+esac
+
+if [ "$MODE" != list ]; then
+  echo "Workspace: $ROOT"
+  echo "Log: $LOG"
+fi

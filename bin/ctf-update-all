@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="/home/zisec/ctf"
+BIN="$ROOT/bin"
+CFG="$ROOT/config"
+SCRIPTS="$ROOT/scripts"
+PY="/home/zisec/.venvs/ctf-dev/bin/python"
+LOGDIR="$ROOT/logs/update"
+STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+mkdir -p "$LOGDIR"
+LOG="$LOGDIR/$STAMP.log"
+exec > >(tee -a "$LOG") 2>&1
+
+echo "=== CTF update started: $STAMP ==="
+echo "Log: $LOG"
+
+echo '[1/7] Backup current configuration'
+"$BIN/backup-ctf-config"
+
+echo '[2/7] Update Kali packages'
+sudo apt update
+sudo apt full-upgrade -y
+
+echo '[3/7] Update Python CTF environment'
+"$PY" -m pip install --upgrade pip
+"$PY" -m pip install --upgrade -r "$CFG/requirements-ctf.in"
+"$PY" -m pip freeze --local | sort > "$CFG/requirements-ctf.lock"
+
+echo '[4/7] Update user Ruby CTF tools'
+gem update --user-install
+
+update_repo() {
+  local repo="$1"
+  if [ ! -d "$repo/.git" ]; then
+    echo "SKIP missing repo: $repo"
+  elif git -C "$repo" diff --quiet && git -C "$repo" diff --cached --quiet; then
+    git -C "$repo" pull --ff-only
+  else
+    echo "SKIP dirty repo (local changes preserved): $repo"
+  fi
+}
+
+echo '[5/7] Update source-built CTF tools'
+update_repo /opt/ctf-tools/pwn/pwndbg
+update_repo /home/zisec/Tools/ctf-dev/pycdc
+update_repo /home/zisec/ctf/tools/ctfd-player-cli
+"$PY" -m pip install --upgrade --editable /home/zisec/ctf/tools/ctfd-player-cli
+if [ -d /home/zisec/Tools/ctf-dev/pycdc/.git ]; then
+  cmake -S /home/zisec/Tools/ctf-dev/pycdc -B /home/zisec/Tools/ctf-dev/pycdc/build -DCMAKE_BUILD_TYPE=Release
+  cmake --build /home/zisec/Tools/ctf-dev/pycdc/build -j2
+  ln -sfn /home/zisec/Tools/ctf-dev/pycdc/build/pycdc /home/zisec/.local/bin/pycdc
+fi
+
+echo '[6/7] Refresh inventory and verify'
+"$SCRIPTS/refresh-tools-json.py"
+"$BIN/ctf-doctor"
+
+echo '[7/7] Save post-update backup'
+"$BIN/backup-ctf-config"
+echo "=== CTF update completed: $(date -u +%Y%m%dT%H%M%SZ) ==="

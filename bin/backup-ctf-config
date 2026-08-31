@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+stamp=$(date -u +%Y%m%dT%H%M%SZ)
+dest="/home/zisec/ctf/backups/$stamp"
+mkdir -p "$dest"
+cp /home/zisec/ctf/config/tools.json /home/zisec/ctf/config/requirements-ctf.txt /home/zisec/ctf/config/requirements-ctf.lock "$dest/" 2>/dev/null || true
+cp /home/zisec/ctf/config/activate-ctf.sh /home/zisec/ctf/bin/ctf-doctor /home/zisec/.gdbinit "$dest/"
+chmod 700 "$dest"
+printf '%s\n' "$dest"

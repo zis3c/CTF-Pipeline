@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "$#" -lt 1 ]; then echo 'usage: run-isolated <directory> [command...]' >&2; exit 2; fi
+target="$1"
+shift
+test -d "$target" || { echo "directory not found: $target" >&2; exit 1; }
+command -v podman >/dev/null || { echo 'podman is required' >&2; exit 1; }
+if [ "$#" -eq 0 ]; then set -- /bin/bash; fi
+exec podman run --rm --network=none --cap-drop=ALL --security-opt=no-new-privileges \
+  --read-only --tmpfs /tmp:rw,noexec,nosuid,size=256m \
+  -v "$(realpath "$target"):/work:ro" docker.io/library/debian:bookworm-slim "$@"

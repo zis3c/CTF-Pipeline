@@ -1,0 +1,23 @@
+# Runtime CTF data: never commit real challenge content or signed URLs.
+ctfs/
+tools/
+logs/
+backups/
+evidence/
+config/tools.json
+config/requirements-ctf.lock
+
+# Credentials, caches and generated state.
+.env*
+**/.ctfd/
+**/.pipeline/
+**/.history/
+**/.pipeline.lock
+**/.ctf-profile.json
+**/challenges.json
+**/challenges-detailed.json
+**/*.part
+**/.solver-status
+**/attachment-manifest.json
+**/__pycache__/
+*.pyc

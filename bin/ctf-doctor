@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -u
+CTF_ROOT="/home/zisec/ctf"
+CTF_PY="/home/zisec/.venvs/ctf-dev/bin/python"
+export PATH="/home/zisec/.local/bin:/home/zisec/.local/share/gem/ruby/3.3.0/bin:/usr/local/bin:$PATH"
+errors=0
+pass(){ printf '[OK] %s\n' "$1"; }
+warn(){ printf '[WARN] %s\n' "$1"; }
+fail(){ printf '[FAIL] %s\n' "$1"; errors=$((errors+1)); }
+
+[ -x "$CTF_PY" ] && pass "ctf-dev Python exists" || fail "ctf-dev Python missing"
+[ "$("$CTF_PY" -c 'import sys; print(sys.version_info[:2] == (3,12))' 2>/dev/null)" = True ] && pass "Python 3.12" || fail "Python version"
+"$CTF_PY" -m pip check >/dev/null 2>&1 && pass "Python dependencies" || fail "Python dependency check"
+
+for m in pwn Crypto gmpy2 fpylll angr qiling frida uncompyle6 keystone elftools volatility3 yara pefile oletools flask_unsign dnslib shodan scapy capstone lief z3; do
+  "$CTF_PY" -c "import $m" >/dev/null 2>&1 && pass "import $m" || fail "import $m"
+done
+
+for x in gdb checksec ROPgadget ropper ghidra nmap curl jq ffuf sqlmap tshark binwalk exiftool steghide docker qemu-system-x86_64 go rustc cargo pycdc vol one_gadget seccomp-tools zsteg; do
+  command -v "$x" >/dev/null 2>&1 && pass "command $x" || warn "command $x not found"
+done
+
+[ -d "$CTF_ROOT/evidence" ] && [ "$(stat -c '%a' "$CTF_ROOT/evidence" 2>/dev/null)" = 700 ] && pass "global evidence permission 700" || warn "global evidence missing or not 700; per-challenge evidence is preferred"
+[ -f "$HOME/.config/ctf-secrets" ] && [ "$(stat -c '%a' "$HOME/.config/ctf-secrets" 2>/dev/null)" = 600 ] && pass "secret file permission 600" || warn "secret file needs chmod 600"
+[ -f "$CTF_ROOT/config/tools.json" ] && "$CTF_PY" -m json.tool "$CTF_ROOT/config/tools.json" >/dev/null 2>&1 && pass "tools.json valid" || fail "tools.json invalid"
+free_kb=$(df -Pk "$CTF_ROOT" | awk 'NR==2 {print $4}')
+[ "${free_kb:-0}" -gt 10485760 ] && pass "disk space >10 GiB" || warn "disk space below 10 GiB"
+codex mcp list 2>/dev/null | rg -q 'chrome-devtools' && pass "browser MCP registered" || warn "browser MCP not registered"
+printf 'Doctor result: %s error(s)\n' "$errors"
+exit "$errors"
