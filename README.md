@@ -1,10 +1,10 @@
 # CTF Pipeline
 
-[![CI](https://github.com/OWNER/ctf-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/ctf-pipeline/actions/workflows/ci.yml)
+[![CI](https://github.com/zis3c/CTF-Pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/zis3c/CTF-Pipeline/actions/workflows/ci.yml)
 [![Platform](https://img.shields.io/badge/platform-Linux-blue)](docs/OS-COMPATIBILITY.md)
 [![Python](https://img.shields.io/badge/python-3.12-blue)](config/requirements-ctf.txt)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Repository](https://img.shields.io/badge/repository-private-lightgrey)](#repository-scope)
+[![Repository](https://img.shields.io/badge/repository-public-brightgreen)](#repository-scope)
 
 CTF Pipeline is a local, multi-CTF operations toolkit. It retrieves challenges from CTFd, keeps events isolated, preserves solver work during resync, generates AI-readable context, and verifies the local toolchain.
 
