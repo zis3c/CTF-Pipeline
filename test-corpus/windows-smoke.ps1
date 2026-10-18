@@ -25,7 +25,10 @@ try {
   if ((Get-Content (Join-Path $root 'INDEX.md') -Raw) -notmatch '\[~\]') { throw 'INDEX status missing' }
 
   $path = (& $pull open --name demo --challenge 'Fixture Chal' | Select-Object -First 1).Trim()
-  if ($path -ne $chalDir) { throw "open returned: $path" }
+  # Compare by shape, not exact string: the tool canonicalizes the path (8.3 short
+  # names, drive case), so it can differ from the caller-built $chalDir.
+  if (-not (Test-Path -LiteralPath $path -PathType Container)) { throw "open returned a missing directory: $path" }
+  if ($path -notmatch '[\\/]crypto[\\/]fixture-chal$') { throw "open returned: $path (expected ...\crypto\fixture-chal)" }
 } finally {
   Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
 }
