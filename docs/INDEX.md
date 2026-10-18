@@ -4,6 +4,7 @@
 
 - [`INSTALLATION.md`](INSTALLATION.md) — prerequisites, installation and first run.
 - [`COMMANDS.md`](COMMANDS.md) — daily command reference.
+- [`WINDOWS.md`](WINDOWS.md) — native Windows (PowerShell) setup and usage.
 - [`DATA-LAYOUT.md`](DATA-LAYOUT.md) — profile and challenge folder contract.
 - [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) — common failures and recovery.
 - [`OS-COMPATIBILITY.md`](OS-COMPATIBILITY.md) — supported operating systems and limitations.

@@ -35,7 +35,7 @@ CTFd -> ctfd-player-cli -> ctf-pull -> ctfs/<profile>/<category>/<challenge>/
 
 ## Supported platforms
 
-Kali Linux amd64 is the primary tested platform. Debian/Ubuntu amd64 is supported with manual package setup. ARM64 and WSL2 are best effort; macOS is not turnkey; native Windows is unsupported. See [`docs/OS-COMPATIBILITY.md`](docs/OS-COMPATIBILITY.md).
+Kali Linux amd64 is the primary tested platform. Debian/Ubuntu amd64 is supported with manual package setup. Native Windows is supported through PowerShell scripts; see [`docs/WINDOWS.md`](docs/WINDOWS.md). ARM64 and WSL2 are best effort; macOS is not turnkey. See [`docs/OS-COMPATIBILITY.md`](docs/OS-COMPATIBILITY.md).
 
 ## Installation
 
@@ -48,7 +48,16 @@ ctf-install-tools
 ctf-doctor
 ```
 
-See [`docs/INSTALLATION.md`](docs/INSTALLATION.md) for prerequisites and setup details.
+```powershell
+$env:CTF_HOME = "$HOME\ctf-pipeline"
+git clone <private-repository-url> $env:CTF_HOME
+. "$env:CTF_HOME\config\activate-ctf.ps1"
+.\bin\ctf-install-tools.ps1 -DryRun
+.\bin\ctf-install-tools.ps1
+.\bin\ctf-doctor.ps1
+```
+
+See [`docs/INSTALLATION.md`](docs/INSTALLATION.md) for prerequisites and setup details, and [`docs/WINDOWS.md`](docs/WINDOWS.md) for the native Windows guide.
 
 ## Quick start
 

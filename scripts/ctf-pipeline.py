@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Metadata, archive, index and safety layer for the CTFd pull pipeline."""
 from __future__ import annotations
-import hashlib, json, os, re, shutil, sys
+import hashlib, json, os, re, shutil, subprocess, sys
 from datetime import datetime, timezone
 from pathlib import Path
-import requests
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from ctfd import CtfdClient
 
 ROOT = Path(sys.argv[2]).resolve()
 EVENT = ROOT.name
@@ -41,10 +43,10 @@ def show_diff():
 def dry_run():
     cfg=load_json(ROOT/'.ctfd/config.json') if (ROOT/'.ctfd/config.json').exists() else {}
     c=cfg.get('CTFD',{}); url=c.get('URL','').rstrip('/'); token=c.get('TOKEN','')
-    if not url or not token: raise SystemExit('Profile is not initialized')
-    response=requests.get(url+'/api/v1/challenges',headers={'Authorization':f'Token {token}','Content-Type':'application/json','User-Agent':'CTFd-CLI-v0.1-by-@TheFlash2k'},timeout=20)
-    try: live=response.json().get('data',[])
-    except ValueError: raise SystemExit(f'CTFd dry-run returned HTTP {response.status_code}, not JSON')
+    if not url: raise SystemExit('Profile is not initialized')
+    client=CtfdClient(url, token)
+    client.authenticate()
+    live=client.fetch_detailed()
     old=load_json(ROOT/'challenges-detailed.json')
     print(f'Dry run for {EVENT}:')
     diff(old,live)
@@ -89,7 +91,7 @@ def generated_docs():
         st=d/'.solver-status'
         if not st.exists(): st.write_text('not_started\n')
         status={'not_started':'[ ]','in_progress':'[~]','solved':'[x]'}.get(st.read_text().strip(),'[ ]')
-        index.append(f"| {status} | {x.get('category','')} | [{x.get('name','')}]({d.relative_to(ROOT)}/) | {x.get('value','')} | {x.get('id','')} |")
+        index.append(f"| {status} | {x.get('category','')} | [{x.get('name','')}]({d.relative_to(ROOT).as_posix()}/) | {x.get('value','')} | {x.get('id','')} |")
         files=[]
         expected=attachment_names(x)
         for p in d.iterdir():
@@ -101,8 +103,11 @@ def generated_docs():
         agent=f"# Agent Context: {x.get('name','')}\n\n- Category: {x.get('category','')}\n- Type: {x.get('type','')}\n- Points: {x.get('value','')}\n- Challenge ID: {x.get('id','')}\n- Recommended skill: `{family}`\n- Work directory: `work/`\n- Evidence directory: `flag_output_dir/`\n- Writeup: `writeup/solution.md`\n\n## Tools\n\nVerify suitable tools in `{repo_root}/config/tools.json` before use.\n\n## Validation\n\nDo not call a hint, banner, OCR result or unverified string a final flag. Validate against the intended artifact, checker or service and save evidence in `flag_output_dir/`.\n"
         (d/'AGENT.md').write_text(agent)
         risk=[]
+        risky_suffixes={'.py','.sh','.ps1','.bat','.cmd','.vbs','.js','.php','.exe','.dll','.so','.jar','.apk','.class'}
         for p in d.iterdir():
-            if p.is_file() and p.name not in {'README.md','AGENT.md','EXECUTION-SAFETY.md','attachment-manifest.json'} and (os.access(p,os.X_OK) or p.suffix.lower() in {'.py','.sh','.js','.php','.exe','.dll','.so','.jar','.apk','.class'}): risk.append(f'- `{p.name}`: inspect/run only inside `bin/run-isolated` when untrusted')
+            # Windows has no execute bit: os.access(X_OK) is always True there.
+            has_exec_bit = os.name != 'nt' and os.access(p,os.X_OK)
+            if p.is_file() and p.name not in {'README.md','AGENT.md','EXECUTION-SAFETY.md','attachment-manifest.json'} and (has_exec_bit or p.suffix.lower() in risky_suffixes): risk.append(f'- `{p.name}`: inspect/run only inside `bin/run-isolated` when untrusted')
         (d/'EXECUTION-SAFETY.md').write_text('# Execution Safety\n\n'+('\n'.join(risk) if risk else 'No obvious executable/script attachment detected.')+'\n')
     (ROOT/'INDEX.md').write_text('\n'.join(index)+'\n')
     # Keep a non-destructive report of files no longer listed by CTFd.
@@ -113,7 +118,7 @@ def generated_docs():
         if not d.exists(): continue
         for p in d.iterdir():
             if p.is_file() and p.name not in generated and p.name not in {'.pipeline.lock','.gitignore','submit.sh','launch.sh'} and p.name not in expected:
-                stale.append(str(p.relative_to(ROOT)))
+                stale.append(p.relative_to(ROOT).as_posix())
     (ROOT/'STALE-FILES.md').write_text('# Stale File Report\n\nFiles not currently listed by CTFd are reported only; nothing is deleted.\n\n'+('\n'.join(f'- `{x}`' for x in sorted(stale)) if stale else 'No stale files detected.')+'\n')
 
 def set_status(challenge, value):
@@ -150,13 +155,13 @@ def folder_report():
             m=__import__('re').search(r'^#\s+(.+)$',text,__import__('re').M)
             match=next((x for x in items if m and x.get('name','').strip()==m.group(1).strip()),None)
             if match and not challenge_dir(match).exists():
-                target=challenge_dir(match); target.parent.mkdir(parents=True,exist_ok=True); d.rename(target); moved.append(f'{d.relative_to(ROOT)} -> {target.relative_to(ROOT)}')
-            else: unmatched.append(str(d.relative_to(ROOT)))
+                target=challenge_dir(match); target.parent.mkdir(parents=True,exist_ok=True); d.rename(target); moved.append(f'{d.relative_to(ROOT).as_posix()} -> {target.relative_to(ROOT).as_posix()}')
+            else: unmatched.append(d.relative_to(ROOT).as_posix())
     lines=['# Folder Rename Report','','Folders are never deleted automatically.','','## Matched and moved']+([f'- `{x}`' for x in moved] or ['- None'])+['','## Unmatched folders requiring review']+([f'- `{x}`' for x in unmatched] or ['- None'])
     (ROOT/'FOLDER-RENAME-REPORT.md').write_text('\n'.join(lines)+'\n')
 
 def init_git():
-    if not (ROOT/'.git').exists(): os.system(f'git -C {ROOT} init -q')
+    if not (ROOT/'.git').exists(): subprocess.run(['git','-C',str(ROOT),'init','-q'])
     p=ROOT/'.gitignore'
     if not p.exists(): p.write_text('.ctfd/config.json\n.ctf-profile.json\nchallenges.json\nchallenges-detailed.json\n.pipeline/\n.history/\n*.log\n')
     print('Git tracking ready:',ROOT)

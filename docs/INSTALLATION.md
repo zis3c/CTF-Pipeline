@@ -39,7 +39,7 @@ ctf-pull init --name example-ctf --url https://ctf.example.com
 ctf-pull pull --name example-ctf
 ```
 
-Enter the token interactively. Never place it in command history, documentation or Git.
+Provide a token via `CTFD_TOKEN` (or leave it blank and set `CTFD_USERNAME`/`CTFD_PASSWORD` for session login). Never place secrets in command history, documentation or Git. On Windows see [`WINDOWS.md`](WINDOWS.md); the bundled `ctfd` client replaces the external CLI.
 
 ## Verify development fixtures
 

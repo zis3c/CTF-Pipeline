@@ -8,6 +8,8 @@ export CTF_PYTHON
 if [ -f "$(dirname "$CTF_PYTHON")/activate" ]; then source "$(dirname "$CTF_PYTHON")/activate"; fi
 export PATH="$CTF_HOME/bin:${HOME:-}/.local/share/gem/ruby/3.3.0/bin:$PATH"
 export CTF_GLOBAL_EVIDENCE_DIR="$CTF_HOME/evidence"
+# Expose the bundled `ctfd` module so `python -m ctfd` works.
+export PYTHONPATH="$CTF_HOME${PYTHONPATH:+:$PYTHONPATH}"
 alias ctf-update="$CTF_HOME/bin/ctf-update-all"
 alias ctf-pull="$CTF_HOME/bin/ctf-pull"
 echo "CTF environment: ${VIRTUAL_ENV:-system Python ($CTF_PYTHON)}"

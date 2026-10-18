@@ -9,11 +9,11 @@
 | Debian-based ARM64 | Best effort | Some native binaries and reverse-engineering tools may not be available. |
 | WSL2 | Best effort | Configure networking, Podman, GUI/browser integration and Linux permissions. |
 | macOS | Experimental | Replace Linux paths, `apt` assumptions and container setup. |
-| Windows native | Unsupported | Use WSL2 or a Linux virtual machine. |
+| Windows native | Supported | Use the PowerShell scripts; see [`WINDOWS.md`](WINDOWS.md). Linux permissions, `apt`/`gem` and Podman isolation do not apply. |
 
 ## Portability limitations
 
-The pipeline uses Bash, GNU utilities, Linux permissions and Python 3.12. Repository paths are derived from the checkout location and can be overridden with `CTF_HOME`; Python can be selected with `CTF_PYTHON`. It is designed for Kali Linux and Debian-based Linux systems. Windows and macOS are not first-class targets because the synchronization CLI, file permissions and several CTF tools are Linux-oriented.
+The pipeline uses Bash, GNU utilities, Linux permissions and Python 3.12. Repository paths are derived from the checkout location and can be overridden with `CTF_HOME`; Python can be selected with `CTF_PYTHON`. It is designed for Kali Linux and Debian-based Linux systems. On native Windows the Bash scripts are mirrored by PowerShell ports (`bin\*.ps1`, `config\activate-ctf.ps1`): Linux permissions are skipped, tool installation uses pip instead of apt, and isolation uses Docker/Podman or Windows Sandbox. Several CTF tools remain Linux-oriented, so Windows is a supported but reduced target.
 
 ## CTFd compatibility
 
