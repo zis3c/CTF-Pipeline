@@ -1,10 +1,10 @@
 # Architecture
 
 ```text
-CTFd -> ctfd-player-cli -> challenges-detailed.json -> ctf-pull -> ctfs/<profile>/
+CTFd -> ctfd (bundled) -> challenges-detailed.json -> ctf-pull -> ctfs/<profile>/
                                                                   └─ category/challenge
 tools.json -> ctf-doctor       requirements -> Python environment
-test-corpus -> smoke-test      run-isolated -> Podman sandbox
+test-corpus -> smoke-test      run-isolated -> Podman/Docker or Windows Sandbox
 ```
 
 Each profile is independent: `ctfs/<profile>/challenges-detailed.json`, `ctfs/<profile>/challenges.json` and `ctfs/<profile>/.ctfd/config.json`. Global sources are `config/tools.json` and `config/requirements-ctf.*`.
@@ -13,4 +13,4 @@ Each profile is independent: `ctfs/<profile>/challenges-detailed.json`, `ctfs/<p
 
 Before sync, the pipeline snapshots metadata; after sync it prints a diff. Before downloads it archives generated content under `.history/`. Afterward it regenerates indexes, profile metadata, AI context, SHA-256 manifests, solver status views and a non-destructive stale-file report.
 
-An advisory cleanup report is generated for old archives, stale attachments and possible duplicates. Download failures are retried by the wrapper, while the local CLI patch resumes `.part` files using HTTP Range when supported.
+An advisory cleanup report is generated for old archives, stale attachments and possible duplicates. Download failures are retried by the wrapper; already-downloaded attachments are skipped and each download is written to a `.part` file and renamed on completion.

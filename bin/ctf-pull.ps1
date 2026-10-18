@@ -45,7 +45,7 @@ while ($i -lt $Argv.Count) {
 function Show-Usage {
   @"
 Usage:
-  ctf-pull init --name NAME --url URL     Create a named CTF profile (prompts for token)
+  ctf-pull init --name NAME --url URL     Create a named CTF profile (token: --token/CTFD_TOKEN, or CTFD_USERNAME/CTFD_PASSWORD)
   ctf-pull sync --name NAME              Refresh one profile's metadata
   ctf-pull pull --name NAME              Sync one profile and download everything
   ctf-pull resync --name NAME            Force-refresh one profile
@@ -56,8 +56,6 @@ Usage:
 Local folders work/, notes/ and flag_output_dir/ are preserved during resync.
 "@
 }
-
-New-Item -ItemType Directory -Force -Path $BASE_ROOT, $LOGDIR | Out-Null
 
 $validModes = 'init', 'sync', 'pull', 'resync', 'status', 'list', 'doctor', 'set-status', 'open', 'git-init'
 if ($MODE -notin $validModes) {

@@ -1,7 +1,7 @@
 # CTF Pipeline
 
 [![CI](https://github.com/zis3c/CTF-Pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/zis3c/CTF-Pipeline/actions/workflows/ci.yml)
-[![Platform](https://img.shields.io/badge/platform-Linux-blue)](docs/OS-COMPATIBILITY.md)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-blue)](docs/OS-COMPATIBILITY.md)
 [![Python](https://img.shields.io/badge/python-3.12-blue)](config/requirements-ctf.txt)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Repository](https://img.shields.io/badge/repository-public-brightgreen)](#repository-scope)
@@ -15,7 +15,7 @@ It is intended for authorized CTF participation and lab environments. It does no
 It replaces ad-hoc copying of challenge descriptions, attachments, notes, scripts and evidence with a predictable, repeatable workspace.
 
 ```text
-CTFd -> ctfd-player-cli -> ctf-pull -> ctfs/<profile>/<category>/<challenge>/
+CTFd -> ctfd (bundled) -> ctf-pull -> ctfs/<profile>/<category>/<challenge>/
                                       ├── README.md
                                       ├── work/notes/writeup
                                       └── flag_output_dir
@@ -24,13 +24,13 @@ CTFd -> ctfd-player-cli -> ctf-pull -> ctfs/<profile>/<category>/<challenge>/
 ## Features
 
 - Multiple isolated CTFd profiles with separate tokens and metadata.
-- Metadata sync, attachment download, retry and `.part` HTTP Range resume.
+- Metadata sync, attachment download, retry, and skipping of files already downloaded.
 - Dry-run preview with `+ new`, `~ modified` and `- removed` changes.
 - Timestamped archives before real pull/resync operations.
 - SHA-256 attachment manifests and profile health checks.
 - Generated `INDEX.md`, `STATUS.md`, `_ctf-info.md` and AI `AGENT.md` files.
 - Stale-file and renamed-folder reports; no automatic deletion.
-- Safety hints for executable attachments and a Podman isolation helper.
+- Safety hints for executable attachments and an isolation helper (Podman/Docker or Windows Sandbox).
 - Smoke tests for pwn, crypto, APK, PCAP and memory workflows.
 
 ## Supported platforms
@@ -41,7 +41,7 @@ Kali Linux amd64 is the primary tested platform. Debian/Ubuntu amd64 is supporte
 
 ```bash
 export CTF_HOME="$HOME/ctf-pipeline"
-git clone <private-repository-url> "$CTF_HOME"
+git clone https://github.com/zis3c/CTF-Pipeline.git "$CTF_HOME"
 source "$CTF_HOME/config/activate-ctf.sh"
 ctf-install-tools --dry-run
 ctf-install-tools
@@ -50,7 +50,7 @@ ctf-doctor
 
 ```powershell
 $env:CTF_HOME = "$HOME\ctf-pipeline"
-git clone <private-repository-url> $env:CTF_HOME
+git clone https://github.com/zis3c/CTF-Pipeline.git $env:CTF_HOME
 . "$env:CTF_HOME\config\activate-ctf.ps1"
 .\bin\ctf-install-tools.ps1 -DryRun
 .\bin\ctf-install-tools.ps1

@@ -4,14 +4,14 @@
 
 - Kali Linux, Debian or Ubuntu recommended.
 - Bash, Git, Python 3.12 and a compatible virtual environment.
-- `ctfd-player-cli` installed in the selected Python environment.
+- A CTFd client. One is bundled in this repository (`ctfd/`, used as `python -m ctfd`); the bundled `activate-ctf.sh` adds it to `PYTHONPATH`.
 - Optional Podman for `run-isolated` and Chrome DevTools MCP for browser work.
 
 ## Install
 
 ```bash
 export CTF_HOME="$HOME/ctf-pipeline"
-git clone <private-repository-url> "$CTF_HOME"
+git clone https://github.com/zis3c/CTF-Pipeline.git "$CTF_HOME"
 source "$CTF_HOME/config/activate-ctf.sh"
 
 # Preview first, then install the standard toolchain.
@@ -21,7 +21,7 @@ ctf-install-tools
 
 All scripts derive their repository root automatically. Set `CTF_HOME` when the repository is stored outside its default location. Set `CTF_PYTHON` when Python is not on `PATH` or when a dedicated virtual environment is preferred.
 
-By default downloaded profiles are stored under `$CTF_HOME/ctfs`. Set `CTF_PROFILES_ROOT` to store them elsewhere, such as `export CTF_PROFILES_ROOT="$HOME"` for a profile at `$HOME/3108-ctf-warisan-takhta`.
+By default downloaded profiles are stored under `$CTF_HOME/ctfs`. Set `CTF_PROFILES_ROOT` to store them elsewhere, such as `export CTF_PROFILES_ROOT="$HOME"` for a profile at `$HOME/example-ctf`.
 
 The installer covers the standard Kali/Debian CTF packages, the pinned Python environment, and Ruby tools such as `one_gadget`, `seccomp-tools` and `zsteg`. Use `ctf-install-tools --extras` for optional pipx utilities. It skips unavailable apt package names, bootstraps the local inventory from `config/tools.example.json`, and records detected versions in `config/tools.json`.
 
@@ -46,4 +46,5 @@ Provide a token via `CTFD_TOKEN` (or leave it blank and set `CTFD_USERNAME`/`CTF
 ```bash
 "$CTF_HOME/test-corpus/smoke-test.sh"
 "$CTF_HOME/test-corpus/ctfd-integration-test.py"
+python -m unittest discover -s tests -t .   # run from the repository root
 ```

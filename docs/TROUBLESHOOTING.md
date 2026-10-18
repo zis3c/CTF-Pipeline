@@ -20,11 +20,11 @@ ctf-pull doctor --name example-ctf
 ctf-pull pull --name example-ctf
 ```
 
-Missing means it was never downloaded; `.part` means a resumable download is incomplete.
+Missing means it was never downloaded; `.part` means a download was interrupted before it finished. Re-run `ctf-pull pull` to fetch it again.
 
-## Server does not support Range
+## Interrupted download
 
-The downloader safely restarts the partial file and verifies the completed file through its SHA-256 manifest.
+Downloads are written to a `.part` file and renamed on completion, so an interrupted pull never leaves a half-written attachment in place. Re-run `ctf-pull pull`; the file is fetched again and verified through its SHA-256 manifest.
 
 ## Pipeline lock
 

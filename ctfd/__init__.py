@@ -19,7 +19,7 @@ from pathlib import Path
 
 import requests
 
-UA = "CTFd-CLI-v0.1-by-@TheFlash2k"
+UA = "ctf-pipeline-ctfd/0.1"
 CONFIG_REL = Path(".ctfd") / "config.json"
 CHALLENGE_FIELDS = (
     "id", "name", "category", "type", "value",
@@ -144,18 +144,11 @@ class CtfdClient:
 def download_file(client, url, dest):
     dest = Path(dest)
     part = dest.with_name(dest.name + ".part")
-    headers, mode = {}, "wb"
-    if part.exists() and not dest.exists():
-        headers["Range"] = f"bytes={part.stat().st_size}-"
-        mode = "ab"
-    r = client.s.get(url, headers=headers, timeout=120, stream=True)
-    if r.status_code == 416:
-        part.replace(dest)
-        return dest
-    if r.status_code == 200 and mode == "ab":
-        mode = "wb"
+    # Always download the whole file: resuming a stale .part onto changed
+    # server content would silently mix old and new bytes.
+    r = client.s.get(url, timeout=120, stream=True)
     r.raise_for_status()
-    with open(part, mode) as fh:
+    with open(part, "wb") as fh:
         for chunk in r.iter_content(1 << 16):
             fh.write(chunk)
     part.replace(dest)
@@ -215,12 +208,18 @@ def cmd_challenges(root, args):
         target = root / category(chal.get("category", "Other")) / slug(chal.get("name", "challenge"))
         for sub in ("work", "notes", "flag_output_dir"):
             (target / sub).mkdir(parents=True, exist_ok=True)
-        for f in (chal.get("file_urls") or chal.get("files") or []):
+        files = chal.get("file_urls") or chal.get("files") or []
+        for f in files:
             url = f if str(f).startswith("http") else base + str(f)
             name = Path(str(f).split("?", 1)[0]).name
-            download_file(client, url, target / name)
+            dest = target / name
+            if dest.exists() and not dest.with_name(dest.name + ".part").exists():
+                continue
+            download_file(client, url, dest)
             print(f"downloaded {name} -> {target.relative_to(root)}")
-        chal["is_downloaded"] = True
+        chal["is_downloaded"] = all(
+            (target / Path(str(f).split("?", 1)[0]).name).exists() for f in files
+        )
     save_config(root, cfg)
     print(f"Processed attachments for {len(cfg.get('Challenges', []))} challenges")
 

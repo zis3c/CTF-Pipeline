@@ -8,7 +8,7 @@ $env:PYTHONUTF8 = '1'
 $root = Join-Path $CTF_HOME "ctfs\manual\$safe"
 if (Test-Path $root) { Write-Error "exists: $root"; exit 1 }
 
-foreach ($sub in 'files', 'work', 'notes', 'writeup', 'flag_output_dir') {
+foreach ($sub in 'work', 'notes', 'writeup', 'flag_output_dir') {
   New-Item -ItemType Directory -Force -Path (Join-Path $root $sub) | Out-Null
 }
 

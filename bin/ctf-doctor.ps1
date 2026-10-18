@@ -21,13 +21,18 @@ if ($LASTEXITCODE -eq 0 -and $ver) { try { $verOk = ([version]$ver -ge [version]
 if ($verOk) { Pass "Python $ver" } else { Fail "Python version (need >= 3.10)" }
 
 & $PY -m pip check *> $null
-if ($LASTEXITCODE -eq 0) { Pass "Python dependencies" } else { Fail "Python dependency check" }
+if ($LASTEXITCODE -eq 0) { Pass "Python dependencies" } else { Warn "pip reports unmet dependencies (common on Windows; advisory)" }
+
+# The pipeline itself only needs requests; the rest are solver tools that often
+# fail to build on Windows, so they warn instead of failing the doctor.
+& $PY -c "import requests" *> $null
+if ($LASTEXITCODE -eq 0) { Pass "import requests" } else { Fail "import requests (required by the pipeline)" }
 
 $modules = 'pwn', 'Crypto', 'gmpy2', 'fpylll', 'angr', 'qiling', 'frida', 'uncompyle6', 'keystone', 'elftools',
 'volatility3', 'yara', 'pefile', 'oletools', 'flask_unsign', 'dnslib', 'shodan', 'scapy', 'capstone', 'lief', 'z3'
 foreach ($m in $modules) {
   & $PY -c "import $m" *> $null
-  if ($LASTEXITCODE -eq 0) { Pass "import $m" } else { Fail "import $m" }
+  if ($LASTEXITCODE -eq 0) { Pass "import $m" } else { Warn "import $m not available (optional solver tool)" }
 }
 
 foreach ($x in 'git', 'curl', 'python', 'pip') {
@@ -43,7 +48,7 @@ if (Test-Path $tools) {
   & $PY -m json.tool $tools *> $null
   if ($LASTEXITCODE -eq 0) { $toolsOk = $true }
 }
-if ($toolsOk) { Pass 'tools.json valid' } else { Fail 'tools.json invalid or missing' }
+if ($toolsOk) { Pass 'tools.json valid' } else { Warn 'tools.json missing or invalid (run bin\ctf-install-tools.ps1)' }
 
 try {
   $driveRoot = [System.IO.Path]::GetPathRoot((Resolve-Path $CTF_ROOT).Path)

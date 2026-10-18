@@ -23,11 +23,12 @@ if ($runtime) {
 $sandbox = Get-Command WindowsSandbox.exe -ErrorAction SilentlyContinue
 if ($sandbox) {
   $wsb = Join-Path $env:TEMP ("ctf-isolated-{0}.wsb" -f [guid]::NewGuid().ToString('N'))
+  $fullXml = [System.Security.SecurityElement]::Escape($full)
   $xml = @"
 <Configuration>
   <MappedFolders>
     <MappedFolder>
-      <HostFolder>$full</HostFolder>
+      <HostFolder>$fullXml</HostFolder>
       <SandboxFolder>C:\Users\WDAGUtilityAccount\Desktop\work</SandboxFolder>
       <ReadOnly>true</ReadOnly>
     </MappedFolder>

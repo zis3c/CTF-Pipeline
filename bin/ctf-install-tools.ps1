@@ -25,10 +25,14 @@ if (-not (Invoke-Step $PY @('-m', 'pip', 'install', 'requests'))) {
 
 $req = Join-Path $CTF_HOME 'config\requirements-ctf.txt'
 Write-Host '[INFO] Installing the Python CTF packages. Some Linux-only packages (fpylll, angr, pwntools, ...) may fail on Windows; that does not stop the pipeline.'
-try {
-  & $PY -m pip install -r $req
-  if ($LASTEXITCODE -ne 0) { Write-Warning 'Some packages did not install; the core pipeline still works.' }
-} catch { Write-Warning "requirements install error: $_" }
+if ($DryRun) {
+  Write-Host ("+ {0} -m pip install -r {1}" -f $PY, $req)
+} else {
+  try {
+    & $PY -m pip install -r $req
+    if ($LASTEXITCODE -ne 0) { Write-Warning 'Some packages did not install; the core pipeline still works.' }
+  } catch { Write-Warning "requirements install error: $_" }
+}
 
 if ($Extras) {
   if (-not (Get-Command pipx -ErrorAction SilentlyContinue)) {
@@ -46,6 +50,8 @@ if (-not (Test-Path $tools)) {
   if (-not $DryRun) { Copy-Item (Join-Path $CTF_HOME 'config\tools.example.json') $tools }
 }
 
-& $PY (Join-Path $CTF_HOME 'scripts\refresh-tools-json.py')
-& (Join-Path $CTF_HOME 'bin\ctf-doctor.ps1')
+if (-not $DryRun) {
+  & $PY (Join-Path $CTF_HOME 'scripts\refresh-tools-json.py')
+  & (Join-Path $CTF_HOME 'bin\ctf-doctor.ps1')
+}
 Write-Host 'CTF tool installation completed.'

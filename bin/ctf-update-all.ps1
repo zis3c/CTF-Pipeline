@@ -26,10 +26,9 @@ Write-Host '[2/5] Update Python CTF environment'
 & $PY -m pip freeze --local | Sort-Object | Set-Content (Join-Path $CFG 'requirements-ctf.lock')
 
 Write-Host '[3/5] Update pipeline repository'
-$dirty = git -C $ROOT status --porcelain
 if (-not (Test-Path (Join-Path $ROOT '.git'))) {
   Write-Host "SKIP missing repo: $ROOT"
-} elseif ($dirty) {
+} elseif (git -C $ROOT status --porcelain) {
   Write-Host "SKIP dirty repo (local changes preserved): $ROOT"
 } else {
   git -C $ROOT pull --ff-only
