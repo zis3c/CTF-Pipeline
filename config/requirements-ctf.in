@@ -1,4 +1,5 @@
-angr
+angr==9.3.3
+claripy==9.3.3
 capstone
 cysignals
 dnslib
@@ -17,7 +18,7 @@ py_ecc
 pycryptodome
 pyelftools
 qiling
-requests
+requests==2.32.3
 ropper
 scapy
 shodan
@@ -25,5 +26,5 @@ sympy
 uncompyle6
 volatility3
 yara-python
-z3-solver
+z3-solver==4.13.0.0
 pwntools

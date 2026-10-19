@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+if [ -n "${BASH_SOURCE[0]:-}" ]; then
+  SCRIPT_SOURCE="${BASH_SOURCE[0]}"
+elif [ -n "${ZSH_VERSION:-}" ]; then
+  # BASH_SOURCE is not populated when this file is sourced from zsh.
+  SCRIPT_SOURCE="${(%):-%N}"
+else
+  SCRIPT_SOURCE="$0"
+fi
+SCRIPT_DIR="$(cd -- "$(dirname -- "$SCRIPT_SOURCE")" && pwd)"
 export CTF_HOME="${CTF_HOME:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 if [ -z "${CTF_PYTHON:-}" ]; then
   if [ -f "${HOME:-}/.venvs/ctf-dev/bin/activate" ]; then CTF_PYTHON="$HOME/.venvs/ctf-dev/bin/python"; else CTF_PYTHON=python3; fi

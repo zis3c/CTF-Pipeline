@@ -11,6 +11,16 @@
 - Unit tests (`tests/`, standard-library `unittest`) cover the `ctfd` client (auth, downloads, skip-existing) and `ctf-pipeline.py` helpers; wired into CI.
 - `ctf-doctor` (Linux) now requires Python >= 3.10 and only treats `requests` and the Python install as failures; optional solver imports and `pip check` are warnings.
 - Removed personal/attribution strings from the client user agent, docs and examples so the repository can stand alone.
+- Rewrite `ctf-update-all` as a resilient ten-step updater: apt, Python, Ruby
+  gems, pipx, every Git-based tool from the inventory, source builds, inventory
+  refresh, doctor and backups.
+- Add `--dry-run`, per-section `--skip-*` flags and opt-in
+  `--with-foundry`, `--with-web3` and `--with-pwndbg-setup` steps.
+- A failing section no longer aborts the run; failures are summarised and the
+  script exits non-zero.
+- Pin `angr`/`claripy`/`z3-solver` and `requests` so the Python environment
+  passes `pip check` (previously `ctf-doctor` reported one error).
+- Add `libyaml-dev` to the installer so Ruby native gems build.
 
 ## 0.2.0 - 2026-08-31
 
