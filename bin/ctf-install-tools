@@ -4,7 +4,14 @@ umask 077
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 CTF_HOME="${CTF_HOME:-$(cd "$SCRIPT_DIR/.." && pwd)}"
-CTF_PYTHON="${CTF_PYTHON:-python3}"
+if [ -z "${CTF_PYTHON:-}" ]; then
+  if [ -x "${HOME:-}/.venvs/ctf-dev/bin/python" ]; then
+    CTF_PYTHON="${HOME}/.venvs/ctf-dev/bin/python"
+  else
+    CTF_PYTHON=python3
+  fi
+fi
+export CTF_HOME CTF_PYTHON
 DRY_RUN=0
 INSTALL_EXTRAS=0
 
@@ -51,7 +58,7 @@ APT_PACKAGES=(
   binwalk foremost pngcheck pngcrush steghide stegseek yara
   tshark tcpflow ffmpeg sox
   nmap ncat dnsrecon dirsearch ffuf feroxbuster gobuster sqlmap
-  go rustc cargo
+  golang-go rustc cargo
 )
 
 available=()
@@ -71,7 +78,7 @@ else
   "${SUDO[@]}" apt install -y "${available[@]}"
 fi
 
-if [ ! -x "$CTF_PYTHON" ]; then
+if ! command -v "$CTF_PYTHON" >/dev/null 2>&1; then
   echo "Python executable not found: $CTF_PYTHON" >&2
   exit 1
 fi
@@ -101,6 +108,6 @@ if [ ! -f "$CTF_HOME/config/tools.json" ]; then
     cp "$CTF_HOME/config/tools.example.json" "$CTF_HOME/config/tools.json"
   fi
 fi
-run "$CTF_HOME/scripts/refresh-tools-json.py"
+run "$CTF_PYTHON" "$CTF_HOME/scripts/refresh-tools-json.py"
 run "$CTF_HOME/bin/ctf-doctor"
 echo 'CTF tool installation completed.'

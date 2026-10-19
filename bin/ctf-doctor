@@ -13,7 +13,7 @@ pass(){ printf '[OK] %s\n' "$1"; }
 warn(){ printf '[WARN] %s\n' "$1"; }
 fail(){ printf '[FAIL] %s\n' "$1"; errors=$((errors+1)); }
 
-[ -x "$CTF_PY" ] && pass "ctf-dev Python exists" || fail "ctf-dev Python missing"
+command -v "$CTF_PY" >/dev/null 2>&1 && pass "Python executable found" || fail "Python executable missing"
 [ "$("$CTF_PY" -c 'import sys; print(sys.version_info >= (3,10))' 2>/dev/null)" = True ] && pass "Python >= 3.10" || fail "Python version"
 "$CTF_PY" -m pip check >/dev/null 2>&1 && pass "Python dependencies" || warn "pip reports unmet dependencies (advisory)"
 "$CTF_PY" -c "import requests" >/dev/null 2>&1 && pass "import requests" || fail "import requests (required by the pipeline)"
