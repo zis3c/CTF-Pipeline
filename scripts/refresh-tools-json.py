@@ -3,7 +3,9 @@ import json, os, re, subprocess
 from pathlib import Path
 
 p = Path(os.environ.get('CTF_HOME', Path(__file__).resolve().parents[1])) / 'config' / 'tools.json'
-data = json.loads(p.read_text())
+if not p.exists():
+    raise SystemExit(f'tools.json not found: {p} (run bin/ctf-install-tools first)')
+data = json.loads(p.read_text(encoding='utf-8'))
 safe_commands = {
     'go', 'rustc', 'cargo', 'gdb', 'nmap', 'curl', 'jq', 'ffuf', 'tshark',
     'binwalk', 'exiftool', 'steghide', 'pycdc', 'vol', 'one_gadget',
@@ -74,5 +76,5 @@ for item in data:
             item['version'] = m.group(1)
     if 'version' not in item:
         item['version'] = 'unknown'
-p.write_text(json.dumps(data, indent=2) + '\n')
+p.write_text(json.dumps(data, indent=2) + '\n', encoding='utf-8')
 print(f'refreshed {len(data)} records; versioned {sum("version" in x for x in data)}')

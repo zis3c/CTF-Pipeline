@@ -11,7 +11,7 @@ fi
 PY="$CTF_PYTHON"
 # Profiles normally live under the pipeline checkout.  Set
 # CTF_PROFILES_ROOT to keep an event workspace elsewhere (for example
-# /home/zisec/3108-ctf-warisan-takhta).
+# ~/ctfs-workspace/my-ctf).
 BASE_ROOT="${CTF_PROFILES_ROOT:-$CTF_HOME/ctfs}"
 ROOT="$BASE_ROOT"
 CTFD_BIN="${CTFD_BIN:-}"
@@ -37,7 +37,7 @@ set -- "${ARGS[@]}"
 usage() {
   cat <<'EOF'
 Usage:
-  ctf-pull init --name NAME --url URL     Create a named CTF profile (prompts for token)
+  ctf-pull init --name NAME --url URL     Create a named CTF profile (token: --token/CTFD_TOKEN, or CTFD_USERNAME/CTFD_PASSWORD)
   ctf-pull sync --name NAME              Refresh one profile's metadata
   ctf-pull pull --name NAME              Sync one profile and download everything
   ctf-pull resync --name NAME            Force-refresh one profile

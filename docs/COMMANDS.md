@@ -110,6 +110,6 @@ Set solver progress by writing one of `not_started`, `in_progress` or `solved` t
 
 `--dry-run` contacts CTFd, shows `+`, `~` and `-` metadata changes, and performs no archive or overwrite.
 
-Downloads retry failed CLI runs up to three times, and the local downloader resumes `.part` files with HTTP Range when the server supports it. `ctf-pull doctor` checks generated profile files and attachment state; `set-status` updates the dashboard; `open` prints the challenge path; `git-init` enables local tracking without committing.
+Downloads retry failed CLI runs up to three times; existing attachments are skipped, and each download is written atomically through a `.part` file. `ctf-pull doctor` checks generated profile files and attachment state; `set-status` updates the dashboard; `open` prints the challenge path; `git-init` enables local tracking without committing.
 
-`CTF_PROFILES_ROOT` overrides the default `$CTF_HOME/ctfs` profile directory. For example, setting it to `$HOME` and using the profile name `3108-ctf-warisan-takhta` produces `$HOME/3108-ctf-warisan-takhta/`. The wrapper exports the upstream CTFd challenge cache to `challenges.json` and `challenges-detailed.json` before generating the local workspace.
+`CTF_PROFILES_ROOT` overrides the default `$CTF_HOME/ctfs` profile directory. For example, setting it to `$HOME` and using the profile name `example-ctf` produces `$HOME/example-ctf/`. The wrapper exports the upstream CTFd challenge cache to `challenges.json` and `challenges-detailed.json` before generating the local workspace.

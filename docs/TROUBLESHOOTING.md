@@ -20,7 +20,7 @@ ctf-pull doctor --name example-ctf
 ctf-pull pull --name example-ctf
 ```
 
-Missing means it was never downloaded; `.part` means a resumable download is incomplete.
+Missing means it was never downloaded; `.part` means a download was interrupted before it finished. Re-run `ctf-pull pull` to fetch it again.
 
 ## `ctfd` CLI not found
 
@@ -35,9 +35,9 @@ ctf-pull pull --name example-ctf
 The activation script supports both Bash and zsh. After sourcing it, verify
 that `ctf-pull` points into the active pipeline checkout with `which ctf-pull`.
 
-## Server does not support Range
+## Interrupted download
 
-The downloader safely restarts the partial file and verifies the completed file through its SHA-256 manifest.
+Downloads are written to a `.part` file and renamed on completion, so an interrupted pull never leaves a half-written attachment in place. Re-run `ctf-pull pull`; the file is fetched again and verified through its SHA-256 manifest.
 
 ## Pipeline lock
 

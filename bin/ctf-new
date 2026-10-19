@@ -8,7 +8,7 @@ CTF_HOME="${CTF_HOME:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 CTF_PYTHON="${CTF_PYTHON:-python3}"
 root="$CTF_HOME/ctfs/manual/$safe"
 if [ -e "$root" ]; then echo "exists: $root" >&2; exit 1; fi
-mkdir -p "$root"/{files,work,notes,writeup,flag_output_dir}
+mkdir -p "$root"/{work,notes,writeup,flag_output_dir}
 chmod 700 "$root/flag_output_dir"
 printf 'not_started\n' > "$root/.solver-status"
 printf '# Agent Context\n\nThis is a manually created challenge. Inspect the category and choose the appropriate CTF skill.\n\n- Work: `work/`\n- Notes: `notes/`\n- Writeup: `writeup/solution.md`\n- Evidence: `flag_output_dir/`\n' > "$root/AGENT.md"

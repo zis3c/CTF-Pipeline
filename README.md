@@ -1,8 +1,8 @@
 # CTF Pipeline
 
 [![CI](https://github.com/zis3c/CTF-Pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/zis3c/CTF-Pipeline/actions/workflows/ci.yml)
-[![Platform](https://img.shields.io/badge/platform-Linux-blue)](docs/OS-COMPATIBILITY.md)
-[![Python](https://img.shields.io/badge/python-3.12-blue)](config/requirements-ctf.txt)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-blue)](docs/OS-COMPATIBILITY.md)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](config/requirements-ctf.txt)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Repository](https://img.shields.io/badge/repository-public-brightgreen)](#repository-scope)
 
@@ -15,7 +15,7 @@ It is intended for authorized CTF participation and lab environments. It does no
 It replaces ad-hoc copying of challenge descriptions, attachments, notes, scripts and evidence with a predictable, repeatable workspace.
 
 ```text
-CTFd -> ctfd-player-cli -> ctf-pull -> ctfs/<profile>/<category>/<challenge>/
+CTFd -> ctfd (bundled) -> ctf-pull -> ctfs/<profile>/<category>/<challenge>/
                                       ├── README.md
                                       ├── work/notes/writeup
                                       └── flag_output_dir
@@ -24,31 +24,40 @@ CTFd -> ctfd-player-cli -> ctf-pull -> ctfs/<profile>/<category>/<challenge>/
 ## Features
 
 - Multiple isolated CTFd profiles with separate tokens and metadata.
-- Metadata sync, attachment download, retry and `.part` HTTP Range resume.
+- Metadata sync, attachment download, retry, and skipping of files already downloaded.
 - Dry-run preview with `+ new`, `~ modified` and `- removed` changes.
 - Timestamped archives before real pull/resync operations.
 - SHA-256 attachment manifests and profile health checks.
 - Generated `INDEX.md`, `STATUS.md`, `_ctf-info.md` and AI `AGENT.md` files.
 - Stale-file and renamed-folder reports; no automatic deletion.
-- Safety hints for executable attachments and a Podman isolation helper.
+- Safety hints for executable attachments and an isolation helper (Podman/Docker or Windows Sandbox).
 - Smoke tests for pwn, crypto, APK, PCAP and memory workflows.
 
 ## Supported platforms
 
-Kali Linux amd64 is the primary tested platform. Debian/Ubuntu amd64 is supported with manual package setup. ARM64 and WSL2 are best effort; macOS is not turnkey; native Windows is unsupported. See [`docs/OS-COMPATIBILITY.md`](docs/OS-COMPATIBILITY.md).
+Kali Linux amd64 is the primary tested platform. Debian/Ubuntu amd64 is supported with manual package setup. WSL2 runs the Linux scripts and is supported. Native Windows is supported through PowerShell scripts; see [`docs/WINDOWS.md`](docs/WINDOWS.md). macOS is out of scope. See [`docs/OS-COMPATIBILITY.md`](docs/OS-COMPATIBILITY.md).
 
 ## Installation
 
 ```bash
 export CTF_HOME="$HOME/ctf-pipeline"
-git clone <private-repository-url> "$CTF_HOME"
+git clone https://github.com/zis3c/CTF-Pipeline.git "$CTF_HOME"
 source "$CTF_HOME/config/activate-ctf.sh"
 ctf-install-tools --dry-run
 ctf-install-tools
 ctf-doctor
 ```
 
-See [`docs/INSTALLATION.md`](docs/INSTALLATION.md) for prerequisites and setup details.
+```powershell
+$env:CTF_HOME = "$HOME\ctf-pipeline"
+git clone https://github.com/zis3c/CTF-Pipeline.git $env:CTF_HOME
+. "$env:CTF_HOME\config\activate-ctf.ps1"
+.\bin\ctf-install-tools.ps1 -DryRun
+.\bin\ctf-install-tools.ps1
+.\bin\ctf-doctor.ps1
+```
+
+See [`docs/INSTALLATION.md`](docs/INSTALLATION.md) for prerequisites and setup details, and [`docs/WINDOWS.md`](docs/WINDOWS.md) for the native Windows guide.
 
 ## Quick start
 
@@ -62,6 +71,32 @@ ctf-pull resync --name example-ctf
 ## Repository scope
 
 This repository contains reusable pipeline code, documentation and safe test fixtures. Real profiles, challenge attachments, tokens, logs, backups, evidence, third-party source and machine-specific inventory are ignored by Git.
+
+## Repository layout
+
+```text
+CTF-Pipeline/
+├── bin/                   entry points: ctf-pull, ctf-doctor, ctf-install-tools,
+│                          ctf-new, ctf-update-all, backup-ctf-config, run-isolated
+│                          (bash for Linux/WSL, .ps1 for Windows)
+├── config/                activate-ctf.sh/.ps1, tools.example.json,
+│                          requirements-ctf.in/.txt
+├── ctfd/                  bundled CTFd client (used as python -m ctfd)
+├── scripts/               ctf-pipeline.py helper CLI, refresh-tools-json.py
+├── test-corpus/           smoke tests and offline fixtures
+├── tests/                 unit tests (python -m unittest discover -s tests -t .)
+├── docs/                  COMMANDS, ARCHITECTURE, DATA-LAYOUT, WINDOWS, ...
+└── .github/workflows/     ci.yml (Linux and Windows jobs)
+
+ctfs/<profile>/            generated at runtime, ignored by Git
+├── .ctfd/config.json      CTFd URL and token (secret)
+├── challenges-detailed.json / challenges.json
+├── .ctf-profile.json, INDEX.md, STATUS.md, _ctf-info.md
+├── .history/              pre-resync snapshots
+└── <category>/<challenge>/   see docs/DATA-LAYOUT.md
+```
+
+Real workspace folder and file details live in [`docs/DATA-LAYOUT.md`](docs/DATA-LAYOUT.md).
 
 ## Documentation
 
