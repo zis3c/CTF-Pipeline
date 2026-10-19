@@ -1,5 +1,6 @@
 # Reproducible Python 3.12 CTF environment; install into the environment selected by CTF_PYTHON.
 angr==9.3.3
+claripy==9.3.3
 capstone==5.0.9
 cysignals==1.12.6
 dnslib==0.9.26
@@ -18,7 +19,7 @@ py_ecc==8.0.0
 pycryptodome==3.23.0
 pyelftools==0.33
 qiling==1.4.6
-requests==2.34.2
+requests==2.32.3
 ropper==1.13.13
 scapy==2.7.0
 shodan==1.31.0

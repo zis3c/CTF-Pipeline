@@ -110,27 +110,79 @@ PY
 
 normalize_categories() {
   [ -d "$ROOT" ] || return
-  while IFS= read -r -d '' category; do
-    case "$(basename "$category")" in
-      *Cryptography*) name=crypto ;;
-      *Web*) name=web ;;
-      *Binary*) name=pwn ;;
-      *Reverse*) name=reverse ;;
-      *Forensics*) name=forensics ;;
-      *Mobile*) name=mobile ;;
-      *OSINT*) name=osint ;;
-      *Misc*) name=misc ;;
-      *Boot2Root*) name=boot2root ;;
-      *Selamat*) name=welcome ;;
-      *) continue ;;
-    esac
-    target="$ROOT/$name"
-    if [ "$category" != "$target" ]; then
-      mkdir -p "$target"
-      find "$category" -mindepth 1 -maxdepth 1 -exec mv {} "$target/" \;
-      rmdir "$category"
-    fi
-  done < <(find "$ROOT" -mindepth 1 -maxdepth 1 -type d ! -name .ctfd -print0)
+  "$PY" - "$ROOT" <<'PY'
+import re
+import shutil
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+special = {'.ctfd', '.pipeline', '.history', '.git', 'manual'}
+
+def slug(value, fallback='challenge'):
+    value = re.sub(r'[^a-zA-Z0-9]+', '-', value).strip('-').lower()
+    return value or fallback
+
+def category(value):
+    value = value.lower()
+    names = [
+        ('cryptography', 'crypto'),
+        ('web exploitation', 'web'),
+        ('binary exploitation', 'pwn'),
+        ('reverse engineering', 'reverse'),
+        ('digital forensics', 'forensics'),
+        ('mobile exploitation', 'mobile'),
+        ('osint', 'osint'),
+        ('miscellaneous', 'misc'),
+        ('boot2root', 'boot2root'),
+        ('selamat', 'welcome'),
+    ]
+    for needle, short in names:
+        if needle in value:
+            return short
+    return slug(value, 'other')
+
+def merge_entry(source, target):
+    if source.is_dir():
+        if not target.exists():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            source.rename(target)
+            return
+        if not target.is_dir():
+            raise RuntimeError(f'Cannot merge directory into file: {target}')
+        for child in list(source.iterdir()):
+            merge_entry(child, target / child.name)
+        source.rmdir()
+        return
+
+    if not target.exists():
+        target.parent.mkdir(parents=True, exist_ok=True)
+        source.rename(target)
+        return
+    if source.read_bytes() == target.read_bytes():
+        source.unlink()
+        return
+
+    # Keep both sides when a user changed one of the colliding files.
+    conflict = target.with_name(target.name + '.upstream')
+    suffix = 2
+    while conflict.exists():
+        conflict = target.with_name(target.name + f'.upstream.{suffix}')
+        suffix += 1
+    source.rename(conflict)
+
+for source in list(root.iterdir()):
+    if not source.is_dir() or source.name in special:
+        continue
+    target = root / category(source.name)
+    if source == target:
+        continue
+    target.mkdir(parents=True, exist_ok=True)
+    for child in list(source.iterdir()):
+        destination = target / (slug(child.name) if child.is_dir() else child.name)
+        merge_entry(child, destination)
+    source.rmdir()
+PY
 }
 
 organize_from_json() {
@@ -179,6 +231,10 @@ for item in items:
 PY
 }
 
+normalize_challenge_scripts() {
+  "$PY" "$PIPE/scripts/normalize-challenge-scripts.py" "$ROOT"
+}
+
 [ "$MODE" = list ] || resolve_root
 if [ "$MODE" != list ]; then
   exec 9>"$ROOT/.pipeline.lock"
@@ -187,14 +243,25 @@ fi
 
 run_ctfd() {
   rm -f /tmp/.ctfd.cache
-  for attempt in 1 2 3; do
-    if [ -n "$CTFD_BIN" ]; then
-      "$CTFD_BIN" -d "$ROOT" "$@" 2>&1 | tee -a "$LOG"
-    elif command -v ctfd >/dev/null 2>&1; then
-      ctfd -d "$ROOT" "$@" 2>&1 | tee -a "$LOG"
+  if [ -z "$CTFD_BIN" ]; then
+    if command -v ctfd >/dev/null 2>&1; then
+      CTFD_BIN="$(command -v ctfd)"
+    elif [ -x "$(dirname -- "$PY")/ctfd" ]; then
+      # A sourced activation can leave the venv's bin directory out of PATH.
+      # The console script is installed next to the selected Python anyway.
+      CTFD_BIN="$(dirname -- "$PY")/ctfd"
     else
-      "$PY" -m ctfd -d "$ROOT" "$@" 2>&1 | tee -a "$LOG"
+      echo '[ERROR] ctfd CLI not found.' >&2
+      echo "[ERROR] Install ctfd-player-cli in: $PY" >&2
+      echo '[ERROR] Or set CTFD_BIN to the ctfd executable.' >&2
+      return 1
     fi
+  elif [ ! -x "$CTFD_BIN" ]; then
+    echo "[ERROR] CTFD_BIN is not executable: $CTFD_BIN" >&2
+    return 1
+  fi
+  for attempt in 1 2 3; do
+    "$CTFD_BIN" -d "$ROOT" "$@" 2>&1 | tee -a "$LOG"
     if [ "${PIPESTATUS[0]}" -eq 0 ]; then
       rm -f /tmp/.ctfd.cache
       return 0
@@ -281,6 +348,8 @@ case "$MODE" in
     migrate_to_event_root
     normalize_categories
     organize_from_json
+    normalize_categories
+    normalize_challenge_scripts
     "$PIPE/scripts/ctf-pipeline.py" diff "$ROOT"
     "$PIPE/scripts/ctf-pipeline.py" generate "$ROOT"
     write_event_info
@@ -297,6 +366,8 @@ case "$MODE" in
     export_metadata
     normalize_categories
     organize_from_json
+    normalize_categories
+    normalize_challenge_scripts
     "$PIPE/scripts/ctf-pipeline.py" diff "$ROOT"
     "$PIPE/scripts/ctf-pipeline.py" generate "$ROOT"
     write_event_info

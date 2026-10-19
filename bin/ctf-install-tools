@@ -44,7 +44,7 @@ else
 fi
 
 APT_PACKAGES=(
-  build-essential cmake git curl wget jq ripgrep fzf
+  build-essential cmake git curl wget jq ripgrep fzf libyaml-dev
   gdb gdb-multiarch checksec python3-ropgadget binutils
   qemu-user qemu-user-static adb apktool jadx
   radare2 rizin hashcat john

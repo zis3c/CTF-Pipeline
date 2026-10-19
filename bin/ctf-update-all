@@ -6,62 +6,335 @@ ROOT="${CTF_HOME:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 BIN="$ROOT/bin"
 CFG="$ROOT/config"
 SCRIPTS="$ROOT/scripts"
-PY="${CTF_PYTHON:-python3}"
 LOGDIR="$ROOT/logs/update"
-STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+
+if [ -z "${CTF_PYTHON:-}" ]; then
+  if [ -x "${HOME:-}/.venvs/ctf-dev/bin/python" ]; then
+    CTF_PYTHON="${HOME}/.venvs/ctf-dev/bin/python"
+  else
+    CTF_PYTHON=python3
+  fi
+fi
+PY="$CTF_PYTHON"
+export CTF_HOME="$ROOT" CTF_PYTHON
+export PATH="$BIN:${HOME:-}/.local/bin:${HOME:-}/.local/share/gem/ruby/3.3.0/bin:/usr/local/bin:$PATH"
+
+DRY_RUN=0
+RUN_APT=1
+RUN_PYTHON=1
+RUN_GEM=1
+RUN_PIPX=1
+RUN_GIT=1
+WITH_FOUNDRY=0
+WITH_WEB3=0
+WITH_PWNDBG_SETUP=0
+FAILURES=0
+
+usage() {
+  cat <<'EOF'
+Usage: ctf-update-all [options]
+
+Update the full CTF toolchain: apt packages, Python environment, Ruby gems,
+pipx tools, Git-based tools and source builds, then refresh the inventory.
+
+Options:
+  --dry-run            Show what would run without changing anything
+  --skip-apt           Do not run apt update/full-upgrade
+  --skip-python        Do not update the Python environment
+  --skip-gem           Do not update Ruby gems
+  --skip-pipx          Do not update pipx tools
+  --skip-git           Do not pull Git-based tools
+  --with-foundry       Update Foundry (forge/cast/anvil) via foundryup
+  --with-web3          Update the isolated web3.py environment
+  --with-pwndbg-setup  Run pwndbg setup.sh after pulling (writes to /usr/local/bin)
+  -h, --help           Show this help
+
+All output is logged to logs/update/<timestamp>.log.
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --dry-run) DRY_RUN=1; shift ;;
+    --skip-apt) RUN_APT=0; shift ;;
+    --skip-python) RUN_PYTHON=0; shift ;;
+    --skip-gem) RUN_GEM=0; shift ;;
+    --skip-pipx) RUN_PIPX=0; shift ;;
+    --skip-git) RUN_GIT=0; shift ;;
+    --with-foundry) WITH_FOUNDRY=1; shift ;;
+    --with-web3) WITH_WEB3=1; shift ;;
+    --with-pwndbg-setup) WITH_PWNDBG_SETUP=1; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
+  esac
+done
+
 mkdir -p "$LOGDIR"
+STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 LOG="$LOGDIR/$STAMP.log"
 exec > >(tee -a "$LOG") 2>&1
 
-echo "=== CTF update started: $STAMP ==="
-echo "Log: $LOG"
+ok()   { printf '[OK] %s\n' "$1"; }
+warn() { printf '[WARN] %s\n' "$1"; }
+fail() { printf '[FAIL] %s\n' "$1"; FAILURES=$((FAILURES + 1)); }
 
-echo '[1/7] Backup current configuration'
-"$BIN/backup-ctf-config"
+run() {
+  printf '+'; printf ' %q' "$@"; printf '\n'
+  [ "$DRY_RUN" -eq 1 ] || "$@"
+}
 
-echo '[2/7] Update Kali packages'
-sudo apt update
-sudo apt full-upgrade -y
+have() { command -v "$1" >/dev/null 2>&1; }
 
-echo '[3/7] Update Python CTF environment'
-"$PY" -m pip install --upgrade pip
-"$PY" -m pip install --upgrade -r "$CFG/requirements-ctf.in"
-"$PY" -m pip freeze --local | sort > "$CFG/requirements-ctf.lock"
-
-echo '[4/7] Update user Ruby CTF tools'
-gem update --user-install
-
-update_repo() {
-  local repo="$1"
-  if [ ! -d "$repo/.git" ]; then
-    echo "SKIP missing repo: $repo"
-  elif git -C "$repo" diff --quiet && git -C "$repo" diff --cached --quiet; then
-    git -C "$repo" pull --ff-only
+run_step() {
+  local name="$1"
+  shift
+  echo
+  echo ">>> $name"
+  if "$@"; then
+    ok "$name"
   else
-    echo "SKIP dirty repo (local changes preserved): $repo"
+    fail "$name"
   fi
 }
 
-echo '[5/7] Update source-built CTF tools'
-update_repo /opt/ctf-tools/pwn/pwndbg
-PYCDC_ROOT="${PYCDC_ROOT:-${HOME:-}/Tools/ctf-dev/pycdc}"
-CTFD_PLAYER_ROOT="${CTFD_PLAYER_ROOT:-$ROOT/tools/ctfd-player-cli}"
-update_repo "$PYCDC_ROOT"
-update_repo "$CTFD_PLAYER_ROOT"
-if [ -f "$CTFD_PLAYER_ROOT/pyproject.toml" ] || [ -f "$CTFD_PLAYER_ROOT/setup.py" ]; then
-  "$PY" -m pip install --upgrade --editable "$CTFD_PLAYER_ROOT"
-fi
-if [ -d "$PYCDC_ROOT/.git" ]; then
-  cmake -S "$PYCDC_ROOT" -B "$PYCDC_ROOT/build" -DCMAKE_BUILD_TYPE=Release
-  cmake --build "$PYCDC_ROOT/build" -j2
-  mkdir -p "${PYCDC_BIN_DIR:-${HOME:-}/.local/bin}"
-  ln -sfn "$PYCDC_ROOT/build/pycdc" "${PYCDC_BIN_DIR:-${HOME:-}/.local/bin}/pycdc"
+if [ "$(id -u)" -eq 0 ]; then
+  SUDO=()
+elif have sudo; then
+  SUDO=(sudo)
+else
+  SUDO=()
 fi
 
-echo '[6/7] Refresh inventory and verify'
-"$SCRIPTS/refresh-tools-json.py"
-"$BIN/ctf-doctor"
+echo "=== CTF update started: $STAMP ==="
+echo "Root:  $ROOT"
+echo "Log:   $LOG"
+echo "Python: $PY"
+if [ "$DRY_RUN" -eq 1 ]; then
+  echo "Mode:  dry-run (no changes will be made)"
+fi
 
-echo '[7/7] Save post-update backup'
-"$BIN/backup-ctf-config"
-echo "=== CTF update completed: $(date -u +%Y%m%dT%H%M%SZ) ==="
+step_backup() {
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "DRY-RUN: $BIN/backup-ctf-config"
+    return 0
+  fi
+  "$BIN/backup-ctf-config"
+}
+
+step_apt() {
+  if [ "$RUN_APT" -eq 0 ]; then
+    echo "SKIP apt (--skip-apt)"
+    return 0
+  fi
+  if [ "${#SUDO[@]}" -eq 0 ] && [ "$(id -u)" -ne 0 ]; then
+    echo "sudo is not available; cannot update system packages" >&2
+    return 1
+  fi
+  run "${SUDO[@]}" apt update || return 1
+  run "${SUDO[@]}" env DEBIAN_FRONTEND=noninteractive \
+    apt -y -o Dpkg::Options::=--force-confdef \
+          -o Dpkg::Options::=--force-confold full-upgrade
+}
+
+step_python() {
+  if [ "$RUN_PYTHON" -eq 0 ]; then
+    echo "SKIP Python (--skip-python)"
+    return 0
+  fi
+  if [ ! -x "$PY" ]; then
+    echo "Python executable not found: $PY" >&2
+    return 1
+  fi
+  run "$PY" -m pip install --upgrade pip || return 1
+  run "$PY" -m pip install --upgrade -r "$CFG/requirements-ctf.in" || return 1
+  if [ "$DRY_RUN" -eq 0 ]; then
+    "$PY" -m pip freeze --local | sort > "$CFG/requirements-ctf.lock"
+  fi
+  if ! "$PY" -m pip check; then
+    warn "pip reports dependency conflicts (see above)"
+  fi
+}
+
+step_gem() {
+  if [ "$RUN_GEM" -eq 0 ]; then
+    echo "SKIP Ruby gems (--skip-gem)"
+    return 0
+  fi
+  if ! have gem; then
+    echo "gem not found; skipping Ruby tools" >&2
+    return 0
+  fi
+  local rc=0
+  run gem update --user-install --no-document one_gadget seccomp-tools zsteg || rc=1
+  run gem install --user-install --no-document one_gadget seccomp-tools zsteg || rc=1
+  return "$rc"
+}
+
+step_pipx() {
+  if [ "$RUN_PIPX" -eq 0 ]; then
+    echo "SKIP pipx (--skip-pipx)"
+    return 0
+  fi
+  if ! have pipx; then
+    echo "pipx not found; skipping pipx tools" >&2
+    return 0
+  fi
+  run pipx upgrade-all
+}
+
+repo_paths() {
+  "$PY" - "$CFG/tools.json" <<'PY'
+import json
+import os
+import sys
+
+path = sys.argv[1]
+if not os.path.exists(path):
+    raise SystemExit(0)
+try:
+    data = json.load(open(path))
+except (ValueError, OSError):
+    raise SystemExit(0)
+
+seen = set()
+for item in data:
+    if item.get('install_method') != 'github':
+        continue
+    repo = item.get('path', '')
+    if repo and repo not in seen:
+        seen.add(repo)
+        print(repo)
+PY
+}
+
+update_repo() {
+  local repo="$1"
+  if [ ! -d "$repo" ]; then
+    echo "SKIP missing repo: $repo"
+    return 0
+  fi
+  if [ ! -d "$repo/.git" ]; then
+    echo "SKIP not a git repo: $repo"
+    return 0
+  fi
+  if ! git -C "$repo" diff --quiet || ! git -C "$repo" diff --cached --quiet; then
+    echo "SKIP dirty repo (local changes preserved): $repo"
+    return 0
+  fi
+  run git -C "$repo" pull --ff-only
+}
+
+step_git() {
+  if [ "$RUN_GIT" -eq 0 ]; then
+    echo "SKIP Git tools (--skip-git)"
+    return 0
+  fi
+  local repos=() repo
+  mapfile -t repos < <(repo_paths)
+  if [ "${#repos[@]}" -eq 0 ]; then
+    repos=(/opt/ctf-tools/pwn/pwndbg)
+  fi
+  local rc=0
+  for repo in "${repos[@]}"; do
+    update_repo "$repo" || rc=1
+  done
+  return "$rc"
+}
+
+step_build() {
+  local pycdc_root="${PYCDC_ROOT:-${HOME:-}/Tools/ctf-dev/pycdc}"
+  local ctfd_root="${CTFD_PLAYER_ROOT:-$ROOT/tools/ctfd-player-cli}"
+  local rc=0
+
+  if [ -d "$pycdc_root/.git" ]; then
+    if [ "$RUN_GIT" -eq 1 ]; then
+      update_repo "$pycdc_root" || rc=1
+    fi
+    if have cmake; then
+      run cmake -S "$pycdc_root" -B "$pycdc_root/build" -DCMAKE_BUILD_TYPE=Release || rc=1
+      run cmake --build "$pycdc_root/build" -j2 || rc=1
+      if [ "$DRY_RUN" -eq 0 ] && [ -x "$pycdc_root/build/pycdc" ]; then
+        mkdir -p "${HOME:-}/.local/bin"
+        ln -sfn "$pycdc_root/build/pycdc" "${HOME:-}/.local/bin/pycdc"
+      fi
+    else
+      echo "SKIP pycdc build: cmake not found"
+    fi
+  else
+    echo "SKIP pycdc: $pycdc_root is not a git repo"
+  fi
+
+  if [ -d "$ctfd_root" ]; then
+    if [ "$RUN_GIT" -eq 1 ]; then
+      update_repo "$ctfd_root" || rc=1
+    fi
+    if [ -f "$ctfd_root/pyproject.toml" ] || [ -f "$ctfd_root/setup.py" ]; then
+      run "$PY" -m pip install --upgrade --editable "$ctfd_root" || rc=1
+    fi
+  else
+    echo "SKIP ctfd-player-cli: $ctfd_root not found"
+  fi
+
+  if [ "$WITH_PWNDBG_SETUP" -eq 1 ] && [ -x /opt/ctf-tools/pwn/pwndbg/setup.sh ]; then
+    run "${SUDO[@]}" /opt/ctf-tools/pwn/pwndbg/setup.sh || rc=1
+  fi
+
+  if [ "$WITH_FOUNDRY" -eq 1 ] && [ -x /opt/foundry/bin/foundryup ]; then
+    run "${SUDO[@]}" env FOUNDRY_DIR=/opt/foundry /opt/foundry/bin/foundryup || rc=1
+  fi
+
+  if [ "$WITH_WEB3" -eq 1 ] && [ -x /opt/blockchain-python/bin/python ]; then
+    run "${SUDO[@]}" /opt/blockchain-python/bin/python -m pip install --upgrade web3 || rc=1
+  fi
+
+  return "$rc"
+}
+
+step_inventory() {
+  run "$PY" "$SCRIPTS/refresh-tools-json.py"
+}
+
+step_doctor() {
+  if "$BIN/ctf-doctor"; then
+    return 0
+  fi
+  echo "ctf-doctor reported issues; review the output above"
+  return 0
+}
+
+step_final_backup() {
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "DRY-RUN: $BIN/backup-ctf-config"
+    return 0
+  fi
+  "$BIN/backup-ctf-config"
+}
+
+if [ "$DRY_RUN" -eq 0 ] && [ "$(id -u)" -ne 0 ] && [ "$RUN_APT" -eq 1 ]; then
+  echo
+  echo "Requesting sudo credentials (needed for apt)..."
+  if ! sudo -v; then
+    fail "sudo authentication"
+    RUN_APT=0
+  fi
+fi
+
+run_step "[1/10] Backup configuration" step_backup
+run_step "[2/10] System packages (apt update + full-upgrade)" step_apt
+run_step "[3/10] Python environment" step_python
+run_step "[4/10] Ruby gems" step_gem
+run_step "[5/10] pipx tools" step_pipx
+run_step "[6/10] Git-based tools" step_git
+run_step "[7/10] Source builds and wrappers" step_build
+run_step "[8/10] Refresh inventory" step_inventory
+run_step "[9/10] Toolchain doctor" step_doctor
+run_step "[10/10] Post-update backup" step_final_backup
+
+echo
+if [ "$FAILURES" -eq 0 ]; then
+  echo "=== CTF update completed: $(date -u +%Y%m%dT%H%M%SZ) ==="
+  exit 0
+fi
+echo "=== CTF update completed with $FAILURES failure(s): $(date -u +%Y%m%dT%H%M%SZ) ==="
+echo "Review the log: $LOG"
+exit 1
