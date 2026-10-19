@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 - 2026-10-19
 
 - Native Windows support: PowerShell ports of every Bash script (`bin\*.ps1`, `config\activate-ctf.ps1`) sharing the same Python core.
 - Bundled minimal `ctfd` client (`ctfd/`) used as `python -m ctfd`, with token auth and a username/password session fallback.
