@@ -39,9 +39,26 @@ if ($Extras) {
     Invoke-Step $PY @('-m', 'pip', 'install', '--user', 'pipx') | Out-Null
     Invoke-Step $PY @('-m', 'pipx', 'ensurepath') | Out-Null
   }
-  foreach ($pkg in 'objection', 'msoffcrypto-tool', 'name-that-hash', 'xortool', 'oletools', 'volatility3', 'pytesseract') {
-    Invoke-Step 'pipx' @('install', '--force', $pkg) | Out-Null
+  # `pipx install --force` fails with the uv backend when the venv already
+  # exists, so upgrade installed tools and only install the missing ones.
+  $installed = @()
+  if (-not $DryRun) {
+    $installed = (& $PY -m pipx list --short 2>$null) |
+      ForEach-Object { ($_ -split '\s+')[0] }
   }
+  $pipxFailures = 0
+  foreach ($pkg in 'objection', 'msoffcrypto-tool', 'name-that-hash', 'xortool', 'oletools', 'volatility3', 'pytesseract') {
+    if ($installed -contains $pkg) {
+      $ok = Invoke-Step $PY @('-m', 'pipx', 'upgrade', $pkg)
+    } else {
+      $ok = Invoke-Step $PY @('-m', 'pipx', 'install', $pkg)
+    }
+    if (-not $ok) {
+      Write-Warning "pipx failed for $pkg; continuing."
+      $pipxFailures++
+    }
+  }
+  if ($pipxFailures -gt 0) { Write-Warning "$pipxFailures pipx tool(s) failed." }
 }
 
 $tools = Join-Path $CTF_HOME 'config\tools.json'

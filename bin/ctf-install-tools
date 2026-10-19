@@ -70,12 +70,13 @@ for package in "${APT_PACKAGES[@]}"; do
   fi
 done
 
+APT_FLAGS=(-y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold)
 if [ "$DRY_RUN" -eq 1 ]; then
   run "${SUDO[@]}" apt update
-  run "${SUDO[@]}" apt install -y "${available[@]}"
+  run "${SUDO[@]}" apt install "${APT_FLAGS[@]}" "${available[@]}"
 else
   "${SUDO[@]}" apt update
-  "${SUDO[@]}" apt install -y "${available[@]}"
+  "${SUDO[@]}" apt install "${APT_FLAGS[@]}" "${available[@]}"
 fi
 
 if ! command -v "$CTF_PYTHON" >/dev/null 2>&1; then
@@ -97,9 +98,25 @@ if [ "$INSTALL_EXTRAS" -eq 1 ]; then
     run "$CTF_PYTHON" -m pipx ensurepath
     export PATH="${HOME:-}/.local/bin:$PATH"
   fi
+  # `pipx install --force` fails with the uv backend when the venv already
+  # exists, so upgrade installed tools and only install the missing ones.
+  installed="$(pipx list --short 2>/dev/null | awk '{print $1}')"
+  pipx_failures=0
   for package in objection msoffcrypto-tool name-that-hash xortool flare-capa oletools volatility3 paramspider slither-analyzer pcodedmp pytesseract; do
-    run pipx install --force "$package"
+    if printf '%s\n' "$installed" | grep -qx "$package"; then
+      run pipx upgrade "$package" || { echo "[WARN] pipx failed to upgrade $package" >&2; pipx_failures=$((pipx_failures + 1)); }
+    else
+      # ParamSpider is not published on PyPI; install it from its Git repo.
+      case "$package" in
+        paramspider) spec="git+https://github.com/devanshbatham/ParamSpider.git" ;;
+        *) spec="$package" ;;
+      esac
+      run pipx install "$spec" || { echo "[WARN] pipx failed to install $package" >&2; pipx_failures=$((pipx_failures + 1)); }
+    fi
   done
+  if [ "$pipx_failures" -gt 0 ]; then
+    echo "[WARN] $pipx_failures pipx tool(s) failed; continuing." >&2
+  fi
 fi
 
 if [ ! -f "$CTF_HOME/config/tools.json" ]; then

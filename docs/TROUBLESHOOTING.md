@@ -51,11 +51,26 @@ log at `logs/update/<timestamp>.log` to see the failing command.
 Common causes:
 
 - `apt` fails on a held package or a full disk: run `sudo apt --fix-broken install` and check `df -h`.
+- `apt` reports `403 Forbidden` while downloading a Kali archive: the mirror is
+  refusing plain HTTP. The updater switches `kali.download`/`http.kali.org`
+  sources to HTTPS and retries automatically (sources are backed up beside the
+  original). To do it manually:
+  ```bash
+  sudo sed -i -E 's#http://(kali\.download|http\.kali\.org)/#https://\1/#g' \
+    /etc/apt/sources.list
+  sudo apt update && sudo apt full-upgrade
+  ```
 - Ruby gems fail to build: install the native headers, then rerun the gem step.
   ```bash
   sudo apt install -y libyaml-dev
   ctf-update --skip-apt --skip-python --skip-pipx --skip-git
   ```
+- `pipx` reports `A virtual environment already exists` during `--extras`: the
+  installer now upgrades existing environments instead of reinstalling them.
+  If an individual tool still fails, run `pipx reinstall <tool>` and re-run
+  `ctf-install-tools --extras`.
+- `paramspider` is not found on PyPI: install it from Git with
+  `pipx install git+https://github.com/devanshbatham/ParamSpider.git`.
 - A Git tool is skipped as `dirty`: commit or stash local changes in that repo.
 - `pip check` reports a conflict: the update still completes, but review the
   pinned versions in `config/requirements-ctf.in`.

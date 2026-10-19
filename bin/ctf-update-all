@@ -130,9 +130,37 @@ step_apt() {
     echo "sudo is not available; cannot update system packages" >&2
     return 1
   fi
-  run "${SUDO[@]}" apt update || return 1
+  run "${SUDO[@]}" apt -o Acquire::Retries=3 update || return 1
   run "${SUDO[@]}" env DEBIAN_FRONTEND=noninteractive \
-    apt -y -o Dpkg::Options::=--force-confdef \
+    apt -y -o Acquire::Retries=3 -o Dpkg::Options::=--force-confdef \
+          -o Dpkg::Options::=--force-confold full-upgrade && return 0
+
+  # Some Kali mirrors return 403 for archives fetched over plain HTTP.
+  # Retry once after switching the Kali sources to HTTPS.
+  local files=() f changed=0
+  for f in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+    [ -f "$f" ] && files+=("$f")
+  done
+  for f in "${files[@]}"; do
+    if grep -qE 'http://(kali\.download|http\.kali\.org)/' "$f" 2>/dev/null; then
+      if [ "$DRY_RUN" -eq 1 ]; then
+        echo "DRY-RUN: switch $f to HTTPS Kali mirrors"
+      else
+        run "${SUDO[@]}" cp -a "$f" "$f.bak-$(date -u +%Y%m%dT%H%M%SZ)"
+        run "${SUDO[@]}" sed -i -E \
+          's#http://(kali\.download|http\.kali\.org)/#https://\1/#g' "$f"
+      fi
+      changed=1
+    fi
+  done
+  if [ "$changed" -eq 0 ]; then
+    echo "apt full-upgrade failed and no HTTP Kali mirror was found to switch" >&2
+    return 1
+  fi
+  echo "Retrying apt with HTTPS Kali mirrors..." >&2
+  run "${SUDO[@]}" apt -o Acquire::Retries=3 update || return 1
+  run "${SUDO[@]}" env DEBIAN_FRONTEND=noninteractive \
+    apt -y -o Acquire::Retries=3 -o Dpkg::Options::=--force-confdef \
           -o Dpkg::Options::=--force-confold full-upgrade
 }
 

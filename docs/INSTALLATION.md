@@ -23,7 +23,13 @@ All scripts derive their repository root automatically. Set `CTF_HOME` when the 
 
 By default downloaded profiles are stored under `$CTF_HOME/ctfs`. Set `CTF_PROFILES_ROOT` to store them elsewhere, such as `export CTF_PROFILES_ROOT="$HOME"` for a profile at `$HOME/example-ctf`.
 
-The installer covers the standard Kali/Debian CTF packages, the pinned Python environment, and Ruby tools such as `one_gadget`, `seccomp-tools` and `zsteg`. Use `ctf-install-tools --extras` for optional pipx utilities. It skips unavailable apt package names, bootstraps the local inventory from `config/tools.example.json`, and records detected versions in `config/tools.json`.
+The installer covers the standard Kali/Debian CTF packages, the pinned Python environment, and Ruby tools such as `one_gadget`, `seccomp-tools` and `zsteg`. It skips unavailable apt package names, bootstraps the local inventory from `config/tools.example.json`, and records detected versions in `config/tools.json`.
+
+Use `ctf-install-tools --extras` for optional pipx utilities. Existing pipx
+environments are upgraded in place and missing ones are installed, so the
+command is safe to re-run. `paramspider` is not published on PyPI and is
+installed from its upstream Git repository. The installer needs `sudo` for the
+apt step and will prompt for a password when run interactively.
 
 ## Python dependencies
 

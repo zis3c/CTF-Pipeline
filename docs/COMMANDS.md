@@ -33,6 +33,16 @@ and source builds, then refreshes the inventory and runs `ctf-doctor`. Every
 run is logged to `logs/update/<timestamp>.log`; a failing section is reported
 but does not abort the remaining sections.
 
+apt retries transient download errors. If a Kali mirror rejects plain-HTTP
+archive downloads (for example `403 Forbidden`), the updater backs up the apt
+sources, switches `http://kali.download` and `http://http.kali.org` entries to
+HTTPS, and retries the upgrade once. Installed pipx tools are upgraded rather
+than reinstalled so the `uv` backend does not fail on existing environments.
+
+`ctf-install-tools --extras` follows the same pipx rule: upgrade when present,
+install when missing. `paramspider` comes from its Git repository because it
+is not available on PyPI.
+
 ```bash
 ctf-update --dry-run            # preview every action
 ctf-update                      # full update (asks for sudo)

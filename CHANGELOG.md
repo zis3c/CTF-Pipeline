@@ -21,6 +21,15 @@
 - Pin `angr`/`claripy`/`z3-solver` and `requests` so the Python environment
   passes `pip check` (previously `ctf-doctor` reported one error).
 - Add `libyaml-dev` to the installer so Ruby native gems build.
+- Fix `ctf-install-tools` Python lookup (prefer the venv and validate with
+  `command -v`) and use `golang-go` on Kali.
+- Make the installer upgrade existing pipx environments instead of running
+  `pipx install --force`, which fails with the `uv` backend, and install
+  `paramspider` from its Git repository because it is not on PyPI.
+- Add an apt retry and automatic HTTP-to-HTTPS fallback for Kali mirrors that
+  return `403 Forbidden`, with a timestamped backup of the sources file.
+- Port the pipx upgrade/install logic to `ctf-install-tools.ps1` using
+  `python -m pipx`; document the reduced Windows extras list.
 
 ## 0.2.0 - 2026-08-31
 

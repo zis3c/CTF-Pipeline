@@ -81,6 +81,12 @@ the `ctf-pull` function).
 - `ctf-install-tools` and `ctf-update-all` install Python packages with pip and
   pull the repository with git. The apt/gem/cmake toolchain from Linux is not
   replicated; install native tools with winget or manually.
+- `ctf-install-tools.ps1 -Extras` runs `python -m pipx`, upgrades tools that
+  already exist and installs only the missing ones. The Windows extras list is
+  smaller than the Linux one and does not include `paramspider`, `flare-capa`,
+  `slither-analyzer` or `pcodedmp`.
+- Foundry, the web3 Python environment and Linux-only gems are not managed on
+  Windows. The `--with-foundry` and `--with-web3` update flags are Linux-only.
 
 ## Verify
 
